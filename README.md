@@ -4,9 +4,19 @@ FireFIT turns your TV into an AI form mirror: on-device computer vision tracks 3
 
 Most Fire TVs have no camera. FireFIT uses your phone as one. Start the session with the Fire TV remote, scan a QR code, and prop the phone up. One 10–12 minute session runs **squats, push-ups and a plank**: the phone tracks your body on-device, counts only full-range reps, and times the plank only while your body line is straight. The TV shows you live with a skeleton overlay, rep ring, form check, rests and an estimated calorie count. Afterwards the summary breaks down every set (time between reps, tempo, depth, hold), and an AI coach agent on AWS streams its review onto the TV, **reads it aloud with Amazon Polly**, and **decides your next session**.
 
-> **Status: v1.0.0, built for the Amazon _Build, Ship, Shape_ hackathon (Fire TV track + AWS Builder).**
-> [docs/PROGRESS.md](docs/PROGRESS.md) tracks what is implemented and how each part was verified (build, automated test, real device, production).
-> Install: type `tinyurl.com/firefitdev` in Downloader on a Fire TV ([v1.0.0 release](../../releases/latest)) · Demo video (recorded on a real Fire TV): _coming soon_
+> **Status: v1.0.2, built for the Amazon _Build, Ship, Shape_ hackathon (Fire TV track + AWS Builder).**
+> [docs/PROGRESS.md](docs/PROGRESS.md) records what is implemented and how each part was verified (build, automated test, real device, production).
+
+## For judges: install in about three minutes
+
+**Requirements:** a Fire TV device running Fire OS 6, 7 or 8, and an Android phone with Chrome on the same Wi-Fi network.
+
+1. On the Fire TV, install **Downloader** (by AFTVnews) from the Amazon Appstore.
+2. Allow Downloader to install apps. Open **Settings › My Fire TV › About** and select the device name seven times to enable Developer Options. Then open **Settings › My Fire TV › Developer Options › Install unknown apps** and turn **Downloader** on.
+3. Open Downloader, enter **`tinyurl.com/firefitdev`**, select **Go**, and choose **Install** when the download completes.
+4. Open **FireFIT**, create a profile, select **Start**, and scan the QR code on the TV with the phone's camera. Nothing needs to be installed on the phone.
+
+The short link always serves the newest [`firefit.apk`](https://github.com/jimmieldavisjr/firefit-tv/releases/latest/download/firefit.apk). An adb install is described below as an alternative.
 
 ## Try it on Fire TV
 
