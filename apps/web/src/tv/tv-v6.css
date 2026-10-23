@@ -43,3 +43,11 @@
 /* Live telemetry must not repaint panels at 10-15 Hz over video: the depth bar stretches on the GPU (transform), and
    the rep ring no longer draws a live inner arc (the bar shows the same descent). Measured: 27 fps -> ~60 fps. */
 .depth-fill { width: 100%; transform-origin: left center; will-change: transform; transition: transform 120ms linear; }
+
+/* Rep glow: the box-shadow fade repainted the ring and the page under it on every frame of its 600 ms, after every rep
+   (headless Chromium, real WebRTC video, simulated phone squatting every 2.4 s: ~190 ring + ~220 page repaints per
+   15 s). Each repaint re-rasters tiles on the CPU cores the Fire TV also needs for video. Fade only the opacity, on its
+   own compositor layer; the shadow colour switches without a transition. Measured: raster 205 -> 109 ms/s, paints
+   40 -> 24/s, video frame rate unchanged. (Dropping the ring sweep and depth-bar glide cut more raster but cost ~1 fps
+   of shown video in the same test, so they stay.) */
+.rc-ring::after { transition: opacity 600ms ease; will-change: opacity; }
