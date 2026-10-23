@@ -49,7 +49,7 @@ export function App() {
   const [creating, setCreating] = useState<{ busy: boolean; error?: string }>({ busy: false });
   const [report, setReport] = useState<{ when: string; data?: SessionReport; error?: string } | null>(null);
   const [profile, setProfile] = useState<ProfileView | null>(null);
-  const [pairing, setPairing] = useState<{ qrUrl?: string; code?: string; status: string }>({ status: "" });
+  const [pairing, setPairing] = useState<{ qrUrl?: string; code?: string; status: string; failed?: string }>({ status: "" });
   const [w, setW] = useState<SessionState | null>(null);
   const [tel, setTel] = useState<Telemetry>(EMPTY);
   const [vstats, setVstats] = useState<VideoStats>({});
@@ -194,6 +194,10 @@ export function App() {
     session.current = { abort };
     setScreen("pair");
     setPairing({ status: "Creating a pairing room…" });
+    const fail = (why: string) => {
+      if (!abort.signal.aborted) setPairing((st) => ({ ...st, status: "", failed: why }));
+    };
+    let opened = false;
     try {
       const s = await tvConnect({
         video: videoRef.current!,
@@ -201,6 +205,7 @@ export function App() {
         onRoom: (qrUrl, code) => setPairing({ qrUrl, code, status: "Waiting for your phone…" }),
         onMsg,
         onOpen: () => {
+          opened = true;
           if (wRef.current) syncPhone(wRef.current, true);
           setScreen("workout");
         },
@@ -208,9 +213,21 @@ export function App() {
       if (abort.signal.aborted) return void s.pc.close();
       session.current = { ...session.current!, pc: s.pc, send: s.send };
       setPairing((st) => ({ ...st, status: "Phone found, connecting…" }));
-      s.pc.addEventListener("connectionstatechange", () => setLink(s.pc.connectionState));
+      // The phone answered, but the peer-to-peer link can still fail (guest Wi-Fi, client isolation): never leave the TV waiting.
+      const giveUp = () => {
+        if (opened || abort.signal.aborted) return;
+        s.pc.close();
+        fail("Your phone joined, but the video link couldn't connect.");
+      };
+      const timer = setTimeout(giveUp, 25_000);
+      s.pc.addEventListener("connectionstatechange", () => {
+        setLink(s.pc.connectionState);
+        if (opened) clearTimeout(timer);
+        else if (s.pc.connectionState === "failed") giveUp();
+      });
     } catch (err) {
-      if (!abort.signal.aborted) setPairing((st) => ({ ...st, status: `Pairing failed: ${(err as Error).message}. Press Select to retry.` }));
+      const m = (err as Error).message;
+      fail(m === "timed out" ? "The pairing code expired before a phone joined." : `Couldn't reach FireFIT (${m}). Check the TV's internet connection.`);
     }
   }, [hangUp, onMsg, syncPhone]);
 
@@ -306,7 +323,7 @@ export function App() {
     else if (k !== "playpause" && k !== "select") sfx.nav();
     if (screen === "pair") {
       if (k === "back") toLibrary();
-      if (k === "select" && pairing.status.startsWith("Pairing failed")) startPairing();
+      if (k === "select" && pairing.failed) startPairing();
     } else if (screen === "workout") {
       if (k === "up") setShowDebug((d) => !d);
       if (disconnected) {

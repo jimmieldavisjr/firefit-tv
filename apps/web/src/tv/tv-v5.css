@@ -50,3 +50,9 @@
 .coach-chat .chat-head { padding-bottom: 18px; }
 .coach-chat .voice-bar + .chat-body { padding-top: 16px; }
 .chat-head .pill { white-space: nowrap; }
+
+/* Pairing failure: a clear reason, network tips and Re-pair, never a frozen spinner */
+.pair.failed { justify-content: center; }
+.pair.failed .pair-text { max-width: 1180px; }
+.pair.failed .fail-why { font-size: 32px; color: var(--text); margin: -8px 0 30px; }
+.pair.failed .start-btn { margin-left: 0; display: inline-flex; }

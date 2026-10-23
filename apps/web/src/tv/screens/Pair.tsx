@@ -1,12 +1,41 @@
 import { useEffect, useState } from "react";
+import { RotateCw } from "lucide-react";
 import QRCode from "qrcode";
 
-export function Pair({ title, qrUrl, code, status }: { title: string; qrUrl?: string; code?: string; status: string }) {
+const TIPS = [
+  "Put the TV and phone on the same main Wi-Fi, not a guest network",
+  "Some mesh and office networks block device-to-device video: try your phone's hotspot",
+  "Keep the phone page open with the screen on",
+];
+
+export function Pair({ title, qrUrl, code, status, failed }: { title: string; qrUrl?: string; code?: string; status: string; failed?: string }) {
   const [img, setImg] = useState<string>();
   useEffect(() => {
     if (qrUrl) QRCode.toDataURL(qrUrl, { width: 420, margin: 1, errorCorrectionLevel: "M" }).then(setImg);
   }, [qrUrl]);
-  const waiting = !status.startsWith("Pairing failed");
+  if (failed)
+    return (
+      <main className="pair glass blur failed">
+        <div className="pair-text">
+          <h2>{title}</h2>
+          <h1>Couldn't connect</h1>
+          <p className="fail-why">{failed}</p>
+          <div className="steps">
+            {TIPS.map((t, i) => (
+              <div className="s" key={t}>
+                <span className="n">{i + 1}</span> {t}
+              </div>
+            ))}
+          </div>
+          <div className="start-btn on">
+            <RotateCw size={30} /> Re-pair
+          </div>
+          <p className="hint" style={{ marginTop: 22 }}>
+            Select: new pairing code · Back: library
+          </p>
+        </div>
+      </main>
+    );
 
   return (
     <main className="pair glass blur">
@@ -31,7 +60,7 @@ export function Pair({ title, qrUrl, code, status }: { title: string; qrUrl?: st
           </p>
         )}
         <p className="status">
-          {waiting && <span className="spinner" />}
+          <span className="spinner" />
           {status}
         </p>
         <p className="hint" style={{ marginTop: 18 }}>

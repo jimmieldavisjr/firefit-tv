@@ -4,7 +4,46 @@ Most Fire TVs have no camera. FireFIT uses your phone as one. Start the session 
 
 > **Status: in active development for the Amazon _Build, Ship, Shape_ hackathon (Fire TV track + AWS Builder).**
 > [docs/PROGRESS.md](docs/PROGRESS.md) tracks what is implemented and how each part was verified (build, automated test, real device, production).
-> Demo video: _coming soon_ · Release APK: _coming soon_ (see [Releases](../../releases))
+> Demo video: _coming soon_ · Release APK: [`firefit.apk`](https://github.com/jimmieldavisjr/firefit-tv/releases/latest/download/firefit.apk) (see [Releases](../../releases))
+
+## Install on Fire TV
+
+FireFIT runs on **Fire OS 6, 7 and 8** devices (Fire TV Stick 4K / 4K Max, Fire TV Cube and others). Vega OS devices, such as the Fire TV Stick 4K Select, can't install APKs: the demo video is the way to see FireFIT there.
+
+The newest APK is always at:
+
+```
+https://github.com/jimmieldavisjr/firefit-tv/releases/latest/download/firefit.apk
+```
+
+**A) Easy, no computer**
+
+1. On the Fire TV, install **Downloader** (by AFTVnews) from the Amazon Appstore.
+2. Go to **Settings › My Fire TV › About** and click the device name 7 times to unlock Developer Options.
+3. Go to **Settings › My Fire TV › Developer Options › Install unknown apps** and turn **Downloader** on.
+4. Open Downloader, type the APK link above (or its short link), and install.
+5. Open **FireFIT** from **Your Apps & Channels**. Optional: press the Menu (☰) button on it and choose **Move to front** to pin it to the home row.
+
+**B) Developer (adb)**
+
+1. **Settings › My Fire TV › Developer Options › ADB debugging** on.
+2. Then:
+
+```bash
+adb connect <fire-tv-ip>:5555
+adb install firefit.apk
+```
+
+**Then work out:** create your profile, press **Start**, and scan the QR code with your phone's camera. No app install on the phone. Prop the phone up in landscape 2.5–3 m away with your whole body in frame. The TV tells you when to move the phone to floor level for push-ups and the plank.
+
+**No Fire TV?** Open [phone.html](https://dctlk09e4uy0d.cloudfront.net/phone.html) in Chrome on a laptop with a webcam (or on a phone) and use the self-test buttons to see live rep counting for squats, push-ups and the plank without a TV.
+
+### Compatibility and troubleshooting
+
+- **Phone:** Android with Chrome is the tested setup. iPhone Safari is untested.
+- **Network:** the TV and phone must be on the **same main Wi-Fi**. Guest and office networks, and some mesh routers, block device-to-device connections. If pairing fails, the TV says so and offers **Re-pair**; turning on your phone's hotspot and joining the TV to it is a reliable workaround.
+- **Framing:** stand 2.5–3 m back with your whole body in frame. Squats need a front view; push-ups and the plank need a side view with the phone at floor level.
+- **Phone stuck on "Loading pose model":** keep the page open on Wi-Fi; the first load downloads the model (about 9 MB).
 
 ## How it works
 
@@ -56,7 +95,7 @@ More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 ## Requirements
 
 - A **Fire OS** Fire TV device (Fire TV Stick 4K / 4K Max / Cube). Vega OS devices such as the Fire TV Stick 4K Select can't install APKs.
-- An Android phone with Chrome on the same Wi-Fi network as the TV
+- An Android phone with Chrome on the same Wi-Fi network as the TV (iPhone Safari is untested)
 - Node.js 22+ and pnpm 11 (`corepack enable`)
 - For deploying: an AWS account and the AWS CLI with a named profile, plus Amazon Bedrock access to Amazon Nova 2 Lite in your region
 - For the TV shell: Android SDK + JDK 17–21 (Android Studio bundles both), and `adb`
@@ -80,7 +119,7 @@ pnpm deploy:web      # builds the web app against ApiUrl, syncs to S3, invalidat
 
 ### 2. Install the TV app
 
-Download `firefit-tv.apk` from [Releases](../../releases) and `adb install firefit-tv.apk`. To build it yourself:
+See [Install on Fire TV](#install-on-fire-tv) for the release APK. To build it yourself:
 
 ```bash
 cd apps/tv-shell
@@ -91,7 +130,7 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 ### 3. Work out
 
-Open **FireFIT** from the Fire TV home row and pick **Squat Fundamentals** with the remote. Scan the QR code with your phone. Stand 2.5–3 m away with your whole body in frame.
+Open **FireFIT** from the Fire TV home row, create a profile, and press **Start**. Scan the QR code with your phone. Stand 2.5–3 m away with your whole body in frame.
 
 Local development, LAN dev servers, and device debugging are covered in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Appstore assets and listing text (tile, cover background, descriptions) are in [docs/store-assets](docs/store-assets/LISTING.md).
 
@@ -99,7 +138,7 @@ Local development, LAN dev servers, and device debugging are covered in [docs/DE
 
 ## Security model (demo scope, stated plainly)
 
-- HTTPS everywhere (CloudFront and API Gateway). API Gateway CORS allows only the CloudFront origin, plus dev origins when you deploy with `DEV_ORIGINS`. Stage throttling is 20 rps with a burst of 40.
+- HTTPS everywhere (CloudFront and API Gateway). API Gateway CORS allows only the CloudFront origin; dev origins are added only when a development deploy sets `DEV_ORIGINS` (the production stack has none). Stage throttling is 20 rps with a burst of 40.
 - Pairing rooms use a random 6-digit code plus a random per-room token. The token is required on every signaling call and compared in constant time. Rooms expire after 15 minutes (DynamoDB TTL).
 - All input is validated with Zod. IAM is scoped per function: only CoachFn can call Bedrock.
 - **Limitation:** profiles have no passwords (like streaming-app profiles on a shared TV). Requests name a profile with an `x-profile-id` header, and the profile and workout routes are protected only by CORS, throttling, and validation. CORS is not authentication. Amazon Cognito is the next step.

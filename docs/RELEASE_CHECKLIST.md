@@ -6,7 +6,7 @@ Tick only with evidence. Deadline: **Fri Oct 23, 2026, 12:00 PM PT** (submission
 - [ ] Public GitHub repo with MIT `LICENSE`; license shows in the About section
 - [ ] README: what it is, architecture, setup someone else can follow, security limits, known limitations, credits
 - [ ] Demo video link added to the README
-- [ ] Release `v1.0.0` with `firefit-tv.apk` attached (set repo variable `FIREFIT_URL`, then push the tag)
+- [ ] Release `v1.0.0` with `firefit.apk` attached (set repo variable `FIREFIT_URL`, then push the tag)
 - [ ] No secrets in history (`git log -p | grep -iE "aws_secret|AKIA"` is empty)
 
 ## Product (each verified on the real device)
