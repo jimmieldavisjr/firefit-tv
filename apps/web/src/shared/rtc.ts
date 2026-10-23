@@ -6,6 +6,9 @@ const API = import.meta.env.VITE_API_URL ?? "";
 const ICE: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 /** 1.5 Mbps sender cap: at 2.5 Mbps the Fire TV Stick 4K decoded only ~14 of 24 fps with ~6% packet loss (Gate 2). */
 const MAX_BITRATE = 1_500_000;
+/** Gate 0 decision: at most 24 fps toward the 1.3 GB Fire TV Stick. Capped in the encoder, not in canvas.captureStream:
+ *  a 24 fps capture limit on a canvas painted at the camera's ~30 fps skips every other frame (measured ~17 fps sent). */
+const MAX_FRAMERATE = 24;
 
 /** The household profile the TV is acting for (sent as x-profile-id; rooms ignore it). */
 let profileId: string | null = null;
@@ -58,13 +61,33 @@ function preferH264(pc: RTCPeerConnection) {
   for (const t of pc.getTransceivers()) if (t.sender.track?.kind === "video") t.setCodecPreferences?.(sorted);
 }
 
+/** Bitrate and frame-rate caps; under CPU or bandwidth pressure, drop resolution before frame rate (a smooth mirror
+ *  beats a sharp, jerky one). A browser that rejects degradationPreference still gets the caps. */
+async function capSender(sender: RTCRtpSender) {
+  const caps = () => {
+    const p = sender.getParameters();
+    if (!p.encodings?.length) return null;
+    p.encodings[0].maxBitrate = MAX_BITRATE;
+    p.encodings[0].maxFramerate = MAX_FRAMERATE;
+    return p;
+  };
+  const p = caps();
+  if (!p) return;
+  try {
+    await sender.setParameters({ ...p, degradationPreference: "maintain-framerate" } as RTCRtpSendParameters);
+  } catch {
+    const plain = caps();
+    if (plain) await sender.setParameters(plain).catch(() => {});
+  }
+}
+
 /** PHONE: the offerer (it owns the track and the DataChannel). room + token come from the QR. */
 export async function phoneConnect(room: string, token: string, stream: MediaStream, onMsg: (m: TvMsg) => void) {
   const pc = new RTCPeerConnection({ iceServers: ICE });
   for (const track of stream.getVideoTracks()) {
     const sender = pc.addTrack(track, stream);
     const p = sender.getParameters();
-    p.encodings = [{ ...(p.encodings?.[0] ?? {}), maxBitrate: MAX_BITRATE }];
+    p.encodings = [{ ...(p.encodings?.[0] ?? {}), maxBitrate: MAX_BITRATE, maxFramerate: MAX_FRAMERATE }];
     sender.setParameters(p).catch(() => {}); // applied again after negotiation below
   }
   preferH264(pc);
@@ -75,13 +98,7 @@ export async function phoneConnect(room: string, token: string, stream: MediaStr
   await api(`/rooms/${room}/offer`, "PUT", { sdp: pc.localDescription!.sdp }, token);
   const { sdp } = await poll(() => api<{ sdp: string }>(`/rooms/${room}/answer`, "GET", undefined, token));
   await pc.setRemoteDescription({ type: "answer", sdp });
-  for (const sender of pc.getSenders()) {
-    const p = sender.getParameters();
-    if (p.encodings?.length) {
-      p.encodings[0].maxBitrate = MAX_BITRATE;
-      await sender.setParameters(p).catch(() => {});
-    }
-  }
+  for (const sender of pc.getSenders()) await capSender(sender);
   const send = (m: PhoneMsg) => dc.readyState === "open" && dc.send(JSON.stringify(m));
   return { pc, dc, send };
 }

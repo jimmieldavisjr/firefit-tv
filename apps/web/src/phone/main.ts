@@ -30,8 +30,7 @@ const ui = {
 const params = new URLSearchParams(location.search);
 const room = params.get("room");
 const token = params.get("t");
-const STREAM_LONG_SIDE = 960; // Gate 0 decision: 960x540 @ 24 fps toward the 1.3 GB Fire TV Stick
-const STREAM_FPS = 24;
+const STREAM_LONG_SIDE = 960; // Gate 0 decision: 960x540 @ 24 fps toward the 1.3 GB Fire TV Stick (fps cap in rtc.ts)
 const PUBLISH_MS = 66; // state messages at 15 Hz: the TV meter and cues feel immediate
 
 let pose: PoseModel;
@@ -42,6 +41,12 @@ let lastPublish = 0;
 let lastVideoTime = -1;
 let inferFps = 0;
 let lastInfer = 0;
+let lastTs = 0;
+let inferMs = 0; // average pose inference time per frame (debug readout)
+let camFps = 0; // camera frames actually delivered per second (debug readout)
+let lastCamFrame = 0;
+let lastVfc = 0;
+let loop = 0;
 let lastCue = "";
 
 const onRep = (rep: import("@firefit/shared").Rep, reps: number) => {
@@ -99,6 +104,7 @@ async function useCamera(f: Facing) {
   pickFacing(f);
   lastVideoTime = -1;
   await Promise.race([video.play(), new Promise((r) => setTimeout(r, 4000))]); // never block on play()
+  if (pose) runLoop(); // camera swapped mid-session: re-arm the frame callbacks on the new stream
 }
 
 ui.swap.addEventListener("click", () => {
@@ -153,7 +159,7 @@ async function start() {
   document.body.classList.toggle("paired", !!room); // paired: the TV is the display, keep the phone screen quiet
   document.body.classList.toggle("debug", params.has("debug"));
   ui.status.textContent = room ? "Connecting to TV…" : SELF_TEST[engine.exercise];
-  requestAnimationFrame(tick);
+  runLoop();
   if (room && token) connect(room, token).catch((err) => (ui.status.textContent = `Pairing failed: ${err.message}`));
 }
 
@@ -165,7 +171,44 @@ function sizeCanvas() {
   canvas.height = Math.round(vh * k);
 }
 
-function tick(now: number) {
+type VfcVideo = HTMLVideoElement & { requestVideoFrameCallback?: (cb: (now: number) => void) => number };
+const hasVfc = typeof (video as VfcVideo).requestVideoFrameCallback === "function";
+
+/**
+ * Frame loop: exactly one canvas paint per new camera frame, and every painted frame carries its skeleton.
+ * The old loop repainted the video on every display refresh (60-120 Hz) but drew the skeleton only on frames that
+ * ran inference, so the stream sampled skeleton-less frames (flicker) and the phone did 2-4x the canvas work.
+ * requestVideoFrameCallback fires once per camera frame; a rAF watcher takes over if it ever stalls (some Android
+ * builds throttle callbacks for a video that sits under an opaque canvas). Inference still runs once per new camera
+ * frame, as before, so the frame-based rep engine sees the same cadence.
+ */
+function runLoop() {
+  const id = ++loop;
+  if (hasVfc) {
+    const onVideoFrame = () => {
+      if (id !== loop) return; // superseded (camera swap)
+      (video as VfcVideo).requestVideoFrameCallback!(onVideoFrame);
+      lastVfc = performance.now();
+      lastVideoTime = video.currentTime;
+      frame();
+    };
+    (video as VfcVideo).requestVideoFrameCallback!(onVideoFrame);
+  }
+  const watch = () => {
+    if (id !== loop) return;
+    requestAnimationFrame(watch);
+    if (hasVfc && performance.now() - lastVfc < 250) return; // video frame callbacks are flowing
+    if (video.currentTime === lastVideoTime) return;
+    lastVideoTime = video.currentTime;
+    frame();
+  };
+  requestAnimationFrame(watch);
+}
+
+function frame() {
+  const now = performance.now();
+  if (lastCamFrame) camFps = 0.9 * camFps + 0.1 * (1000 / Math.max(1, now - lastCamFrame));
+  lastCamFrame = now;
   if (video.videoWidth && canvas.width !== Math.round((video.videoWidth * STREAM_LONG_SIDE) / Math.max(video.videoWidth, video.videoHeight)))
     sizeCanvas(); // phone rotated
   const w = canvas.width;
@@ -173,45 +216,57 @@ function tick(now: number) {
   ctx.setTransform(-1, 0, 0, 1, w, 0); // mirror once; the skeleton inherits it
   ctx.drawImage(video, 0, 0, w, h);
 
-  if (video.currentTime !== lastVideoTime) {
-    lastVideoTime = video.currentTime;
-    const r = pose.landmarker.detectForVideo(video, now);
-    if (lastInfer) inferFps = 0.9 * inferFps + 0.1 * (1000 / (now - lastInfer));
-    lastInfer = now;
-    const img = r.landmarks[0];
-    const world = r.worldLandmarks[0];
-    const s: EngineState = img && world && counting ? engine.update(img, world, now) : engine.lost(now);
-    if (img) drawSkeleton(ctx, img, w, h, s.flagged);
-    render(s);
-    if (now - lastPublish >= PUBLISH_MS) {
-      lastPublish = now;
-      send({
-        t: "state",
-        seq: ++seq,
-        reps: s.reps,
-        stage: s.stage,
-        angle: s.angle,
-        visible: s.visible,
-        fps: Math.round(inferFps),
-        ...(s.holdMs !== undefined ? { holdMs: s.holdMs, good: s.good } : {}),
-        ...(s.cue ? { cue: s.cue } : {}),
-      });
-    }
+  const ts = (lastTs = Math.max(now, lastTs + 1)); // MediaPipe needs strictly increasing timestamps
+  const r = pose.landmarker.detectForVideo(video, ts);
+  inferMs = 0.9 * inferMs + 0.1 * (performance.now() - now);
+  if (lastInfer) inferFps = 0.9 * inferFps + 0.1 * (1000 / Math.max(1, now - lastInfer));
+  lastInfer = now;
+  const img = r.landmarks[0];
+  const world = r.worldLandmarks[0];
+  const s: EngineState = img && world && counting ? engine.update(img, world, now) : engine.lost(now);
+  if (img) drawSkeleton(ctx, img, w, h, s.flagged);
+  render(s);
+  if (now - lastPublish >= PUBLISH_MS) {
+    lastPublish = now;
+    send({
+      t: "state",
+      seq: ++seq,
+      reps: s.reps,
+      stage: s.stage,
+      angle: s.angle,
+      visible: s.visible,
+      fps: Math.round(inferFps),
+      ...(s.holdMs !== undefined ? { holdMs: s.holdMs, good: s.good } : {}),
+      ...(s.cue ? { cue: s.cue } : {}),
+    });
   }
-  requestAnimationFrame(tick);
 }
 
+/** Writes text only when it changed: a DOM write per camera frame re-runs style and layout on the phone. */
+const setText = (el: HTMLElement, v: string) => {
+  if (el.textContent !== v) el.textContent = v;
+};
+const showDebug = params.has("debug");
+
 function render(s: EngineState) {
-  ui.reps.textContent = s.holdMs !== undefined ? `${Math.floor(s.holdMs / 1000)}s` : String(s.reps);
-  ui.stage.textContent = s.stage === "lost" ? "step into frame" : s.stage;
+  setText(ui.reps, s.holdMs !== undefined ? `${Math.floor(s.holdMs / 1000)}s` : String(s.reps));
+  setText(ui.stage, s.stage === "lost" ? "step into frame" : s.stage);
   ui.stage.classList.toggle("lost", s.stage === "lost" || s.stage === "break");
   const cue = s.cue ?? engine.log.at(-1)?.cue ?? "";
   if (cue !== lastCue) ui.cue.textContent = lastCue = cue;
-  ui.debug.textContent = `${engine.exercise} · angle ${s.angle}° · ${s.stage} · ${Math.round(inferFps)} fps · ${pose.label} · ${canvas.width}×${canvas.height}`;
+  if (showDebug)
+    setText(
+      ui.debug,
+      `${engine.exercise} · angle ${s.angle}° · ${s.stage} · cam ${Math.round(camFps)} fps · pose ${Math.round(inferFps)} fps ${Math.round(inferMs)} ms · ${pose.label} · ${canvas.width}×${canvas.height}`,
+    );
 }
 
 async function connect(code: string, t: string) {
-  const out = canvas.captureStream(STREAM_FPS);
+  // No capture rate: one stream frame per painted camera frame. The encoder caps it at 24 fps (rtc.ts).
+  const out = canvas.captureStream();
+  // Canvas tracks default to screen-content handling, which keeps resolution and drops frames under load. This is
+  // live body motion: keep the frame rate and let resolution give instead (pairs with maintain-framerate in rtc.ts).
+  for (const t of out.getVideoTracks()) t.contentHint = "motion";
   const link = await phoneConnect(code, t, out, onTvMsg);
   send = link.send;
   link.dc.addEventListener("open", () => {
