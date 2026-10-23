@@ -7,7 +7,7 @@
 **Track:** Fire TV · **Mini challenge:** AWS Builder
 
 ## Try it
-1. **Fire TV (Fire OS 6/7/8):** install Downloader from the Amazon Appstore, allow it under Developer Options › Install unknown apps, type `firefit.dev`, install, open FireFIT, and scan the QR code on the TV with an Android phone (Chrome). Full steps and the adb path are in the README.
+1. **Fire TV (Fire OS 6/7/8):** install Downloader from the Amazon Appstore, allow it under Developer Options › Install unknown apps, type `tinyurl.com/firefitdev`, install, open FireFIT, and scan the QR code on the TV with an Android phone (Chrome). Full steps and the adb path are in the README.
 2. **Demo video:** _link_ (filmed on a real Fire TV).
 
 ## Inspiration

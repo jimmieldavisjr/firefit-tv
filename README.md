@@ -17,7 +17,7 @@ FireFIT runs on **Fire OS 6, 7 and 8** devices (Fire TV Stick 4K / 4K Max, Fire 
 1. On the Fire TV, install **Downloader** (by AFTVnews) from the Amazon Appstore.
 2. Go to **Settings › My Fire TV › About** and click the device name 7 times to unlock Developer Options.
 3. Go to **Settings › My Fire TV › Developer Options › Install unknown apps** and turn **Downloader** on.
-4. Open Downloader, type **`firefit.dev`**, and install.
+4. Open Downloader, type **`tinyurl.com/firefitdev`** in the URL box, press **Go**, and choose **Install** when the download finishes. (It points to the newest [`firefit.apk`](https://github.com/jimmieldavisjr/firefit-tv/releases/latest/download/firefit.apk).)
 5. Open **FireFIT** from **Your Apps & Channels**. Optional: press the Menu (☰) button on it and choose **Move to front** to pin it to the home row.
 6. Create your profile, press **Start**, and scan the QR code on the TV with your Android phone's camera. Nothing to install on the phone. Prop the phone up in landscape 2.5–3 m away with your whole body in frame; the TV tells you when to move it to floor level for push-ups and the plank.
 
