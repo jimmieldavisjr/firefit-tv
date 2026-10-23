@@ -13,7 +13,8 @@ One entry per tool, API and SDK, filled in from real experience during the build
 - Used for: the coach agent in CoachFn: 3 tools, Zod structured output, running on Lambda
 - Worked well: the TypeScript API (`Agent`, `tool` with a Zod `inputSchema`, `BedrockModel`, `structuredOutputSchema`) matched the documented quickstart in v1.22.0. The ESM-only package bundled cleanly for Lambda with esbuild (ESM output + `createRequire` banner); the 3.2 MB bundle imports without errors in Node 24.
 - First live run (Lambda, Node 22, arm64, 1024 MB): the agent called all three tools in the order the system prompt asked and returned a structured plan that passed Zod validation. The decision matched our deterministic rules. 3.0 s end to end, including DynamoDB writes. Nova 2 Lite worked with tool use + structured output, so we didn't need the Claude Haiku fallback.
-- Needs work: _TBD_
+- Streaming: `agent.stream()` events (`beforeToolCallEvent`, `modelStreamUpdateEvent` text deltas) made it straightforward to show the agent working live on the TV; a second `invoke` with a per-call `structuredOutputSchema` returned the Zod-typed plan in the same conversation. Typical run: 3 tool calls, streamed analysis + plan in 3.5–6 s.
+- Needs work: when the narrative and the structured plan come from separate calls, the model can say one thing and plan another (e.g. "keep squats the same" then a raised target). We fixed it by returning the rules engine's suggested plan from a tool and asking the model to stay consistent; a documented pattern for narrative + structured output would help.
 - Bedrock onboarding: a new account first returned AccessDeniedException "Your account is currently being verified" for a while (under an hour in our case), even though model access already showed AUTHORIZED. The status page could say this up front.
 - Build again? _TBD_
 

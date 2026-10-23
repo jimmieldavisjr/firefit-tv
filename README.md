@@ -1,6 +1,6 @@
 # FireFIT: a form coach for Fire TV, powered by the phone you already have
 
-Most Fire TVs have no camera. FireFIT uses your phone as one. Pick a workout with the Fire TV remote, scan a QR code, and prop the phone up. The phone tracks your body on-device and counts only full-range reps. The TV shows you live with a skeleton overlay, rep ring, sets and rest. After each workout, an AI coach agent on AWS reviews your history and **decides your next workout**.
+Most Fire TVs have no camera. FireFIT uses your phone as one. Start the session with the Fire TV remote, scan a QR code, and prop the phone up. One 10–12 minute session runs **squats, push-ups and a plank**: the phone tracks your body on-device, counts only full-range reps, and times the plank only while your body line is straight. The TV shows you live with a skeleton overlay, rep ring, form check, rests and an estimated calorie count. Afterwards the summary breaks down every set (time between reps, tempo, depth, hold), and an AI coach agent on AWS streams its review onto the TV and **decides your next session**.
 
 > **Status: in active development for the Amazon _Build, Ship, Shape_ hackathon (Fire TV track + AWS Builder).**
 > [docs/PROGRESS.md](docs/PROGRESS.md) tracks what is implemented and how each part was verified (build, automated test, real device, production).
@@ -34,7 +34,8 @@ flowchart LR
 ```
 
 - **Privacy by design:** camera video goes from the phone to the TV over your home network. AWS never receives a camera frame, only structured workout numbers.
-- **Deterministic rep counting:** a rep is an up, down, up cycle in the knee (or elbow) angle. Each threshold crossing must hold for 3 consecutive frames. Low-visibility landmarks count as "lost" and never add reps. No language model decides whether a rep happened.
+- **Deterministic tracking:** a rep is an up, down, up cycle in the knee (squat) or elbow (push-up) angle, and each threshold crossing must hold for 3 consecutive frames. Push-ups only count with the torso horizontal, so arm bends while standing never count. The plank timer runs only while the shoulder-hip-ankle line is straight, with sag/pike cues. Low-visibility landmarks count as "lost" and never add anything. No language model decides whether a rep happened.
+- **Calories are an estimate:** MET values (Compendium of Physical Activities) × body weight (default 80 kg) × time, labeled "est." everywhere.
 - **The AI coach changes the product:** a [Strands Agents](https://strandsagents.com) coach on Lambda calls three tools: `get_profile`, `get_workout_history`, and `analyze_trends` (stats computed in code). It reasons with Amazon Bedrock and picks one of four decisions: **progress / hold / deload / technique**. Its Zod-validated plan is clamped by code guardrails (sets 1–5, reps +2 max, rest 30–120 s) and saved. The library's "Recommended next" card uses it. If the model call fails, a rules engine writes the same shape labeled `source: "rules"`, so the TV never presents a fallback as AI output.
 
 More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -103,7 +104,7 @@ Local development, LAN dev servers, and device debugging are covered in [docs/DE
 ## Known limitations
 
 - The phone and TV must be on the same Wi-Fi network (no TURN server). Guest networks with client isolation block the peer connection.
-- One person in frame. Squats are the primary exercise; push-ups need a side view with the phone at floor level.
+- One person in frame. Squats need a front view; push-ups and the plank need the phone at floor level in side view (the TV prompts the move).
 - Camera-derived depth and tempo are heuristics for training feedback. They are **not medical or clinically validated measurements**.
 
 ## Credits and licenses

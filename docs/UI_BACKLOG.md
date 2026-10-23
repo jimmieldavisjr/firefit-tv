@@ -46,6 +46,10 @@ Done: theme tokens + glass panels + ambient background; top bar (logo with flame
 
 Remaining ideas: program art illustrations instead of icon silhouettes; HUD frame-rate check with a real 30 fps phone stream (the simulated stream decoded at ~15 fps on the stick); a set-complete chime that differs from the rep beep; Rest overlay vs rest card redundancy.
 
+## Status after pass 2 (Oct 23, 00:27 PT, on the Fire TV)
+
+Owner feedback addressed: top-bar steps centered with profile initials + name and the clock at the far right; bottom bar spread across the full width (calories est., workout time, sets complete, exercise n of 3, End Set); much stronger glass (translucent sheen + 22 px backdrop blur + white edge highlight) over a warm/cool bokeh background, and over the live video in the HUD. Overlays centered with margins (an entry animation was overriding the centering transform in Amazon WebView). Reference parity now includes Up next / Then as real upcoming exercises (Push-ups 3 × 8, Plank 3 × 30 sec). Remaining: frame-rate check of blur with a real 24 fps phone stream; own illustrations for exercise cards.
+
 ## Order of work in the polish phase
 
 1. Theme tokens + glass panel component; apply to library, pair and summary (cheap, high visual impact).

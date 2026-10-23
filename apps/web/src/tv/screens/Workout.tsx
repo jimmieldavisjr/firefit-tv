@@ -112,7 +112,7 @@ export function Workout(props: {
             to={timed ? (t.good ? "#22c55e" : "#f59e0b") : "#ff9a3c"}
           />
           <div className="ring-center">
-            <span className="ring-n num">{timed ? mmss(progress) : progress}</span>
+            <span className={"ring-n num" + (timed ? " timed" : "")}>{timed ? mmss(progress) : progress}</span>
             <span className="ring-d">{timed ? `/ ${mmss(b.target)} hold` : `/ ${b.target} reps`}</span>
           </div>
         </div>
