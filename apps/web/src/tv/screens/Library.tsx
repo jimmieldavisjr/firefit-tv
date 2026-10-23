@@ -1,9 +1,10 @@
-// Library: today's workout as ONE connected session (squats -> push-ups -> plank), past sessions you can open
-// for their after-action report, and the profile switcher. Remote: ▲▼ move, Select open/start, Back exit.
+// Library (home): profile + streak on the left; the session (one connected workout) with Start, all-time totals,
+// and past sessions you can open for their after-action report. Sized to sit fully inside 1920x1080.
+// Remote: ▲▼ move, ◀ profile, Select open/start, Back exit.
 import { useState } from "react";
-import { ChevronRight, Circle, Clock, Flame, Gauge, Layers, Play, ScanEye, Sun, Target, Users, Weight, Wifi } from "lucide-react";
+import { ChevronRight, Clock, Flame, Gauge, Layers, Play, Target, Timer, Trophy, Users, Weight, Zap } from "lucide-react";
 import { EXERCISE_INFO } from "@firefit/shared/programs";
-import type { BlockPlan, Decision, ProfileView } from "@firefit/shared";
+import type { BlockPlan, Decision, LifetimeStats, ProfileView } from "@firefit/shared";
 import { sfx } from "../beep";
 import { initials } from "../ui";
 import { useRemote } from "../useRemote";
@@ -18,6 +19,15 @@ export function estimateMin(blocks: BlockPlan[]) {
   return Math.round((sec + (blocks.length - 1) * TRANSITION_SEC) / 60);
 }
 
+/** Local YYYY-MM-DD for "today" and "yesterday": a streak is current only if the last workout was one of them. */
+export const localDate = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function liveStreak(st: LifetimeStats | undefined) {
+  if (!st?.lastDate) return 0;
+  const yesterday = localDate(new Date(Date.now() - 86_400_000));
+  return st.lastDate === localDate() || st.lastDate === yesterday ? st.currentStreak : 0;
+}
+const hm = (sec: number) => (sec >= 3600 ? `${Math.floor(sec / 3600)}h ${Math.round((sec % 3600) / 60)}m` : `${Math.round(sec / 60)} min`);
+
 export function Library(props: {
   blocks: BlockPlan[];
   profile?: ProfileView | null;
@@ -28,6 +38,8 @@ export function Library(props: {
   const { blocks, profile } = props;
   const prof = profile?.profile;
   const name = prof?.name ?? "Guest";
+  const stats = profile?.stats;
+  const streak = liveStreak(stats);
   const recent = (profile?.recent ?? []).slice(0, 4);
   const focusables = ["start", ...recent.map((r) => r.id), "profile"];
   const [focus, setFocus] = useState(0);
@@ -40,7 +52,7 @@ export function Library(props: {
       setFocus((n) => Math.max(0, Math.min(focusables.length - 1, n + (k === "down" ? 1 : -1))));
     } else if (k === "left" && f !== "profile") {
       sfx.nav();
-      setFocus(focusables.length - 1); // jump to the profile card on the left
+      setFocus(focusables.length - 1);
     } else if (k === "right" && f === "profile") {
       sfx.nav();
       setFocus(0);
@@ -56,29 +68,38 @@ export function Library(props: {
   });
 
   return (
-    <main className="library">
-      <aside className={"profile glass" + (f === "profile" ? " focused-card" : "")}>
-        <h3>Your profile</h3>
-        <div className="avatar-row">
-          <div className="avatar">{initials(name)}</div>
-          <div className="name">{name}</div>
-        </div>
-        <Row icon={<Target size={30} />} label="Goal" value={prof?.goal ?? "Strength + form"} />
-        <Row icon={<Gauge size={30} />} label="Level" value={prof?.level ?? "Beginner"} />
-        <Row icon={<Weight size={30} />} label="Weight" value={`${Math.round((prof?.weightKg ?? 80) * KG_TO_LB)} lb`} />
-        <div className="ready-title">Readiness check</div>
-        <Check icon={<ScanEye size={30} />} label="Full body visible" />
-        <Check icon={<Sun size={30} />} label="Light in front of you" />
-        <Check icon={<Wifi size={30} />} label="Same Wi-Fi as the TV" />
-        <div className={"switch-btn" + (f === "profile" ? " on" : "")}>
-          <Users size={28} /> Switch or add profile
-        </div>
+    <main className="home">
+      <aside className="home-left">
+        <section className={"glass home-profile" + (f === "profile" ? " focused-card" : "")}>
+          <div className="avatar-row">
+            <div className="avatar">{initials(name)}</div>
+            <div className="name">{name}</div>
+          </div>
+          <Row icon={<Target size={28} />} label="Goal" value={prof?.goal ?? "Strength + form"} />
+          <Row icon={<Gauge size={28} />} label="Level" value={prof?.level ?? "Beginner"} />
+          <Row icon={<Weight size={28} />} label="Weight" value={`${Math.round((prof?.weightKg ?? 80) * KG_TO_LB)} lb`} />
+          <div className={"switch-btn" + (f === "profile" ? " on" : "")}>
+            <Users size={26} /> Switch or add profile
+          </div>
+        </section>
+
+        <section className="glass streak-card">
+          <div className={"streak-flame" + (streak ? " lit" : "")}>
+            <Flame size={64} />
+          </div>
+          <div>
+            <div className="streak-n num">
+              {streak} day{streak === 1 ? "" : "s"}
+            </div>
+            <div className="muted">{streak ? "Current streak" : "Work out today to start a streak"}</div>
+            <div className="streak-best">
+              <Trophy size={22} /> Best: {stats?.bestStreak ?? 0} day{stats?.bestStreak === 1 ? "" : "s"}
+            </div>
+          </div>
+        </section>
       </aside>
 
-      <section className="lib-main">
-        <h2>Today's workout</h2>
-
-        {/* One session, not a menu: the three exercises are steps of the same workout */}
+      <section className="home-main">
         <div className={"session glass" + (f === "start" ? " focused-card" : "")}>
           <div className="session-head">
             <div>
@@ -90,14 +111,11 @@ export function Library(props: {
                 <span>
                   <Layers size={24} /> {blocks.length} exercises · {sets} sets
                 </span>
-                <span>
-                  <Flame size={24} /> One continuous session
-                </span>
               </div>
-              {prof?.focusCue && prof.next && <div className="session-focus">Focus today: {prof.focusCue}</div>}
+              {prof?.focusCue && prof.next && <div className="session-focus">Focus: {prof.focusCue}</div>}
             </div>
             <div className={"start-btn" + (f === "start" ? " on" : "")}>
-              <Play size={34} fill="#fff" /> Start workout <ChevronRight size={34} />
+              <Play size={32} fill="#fff" /> Start workout <ChevronRight size={32} />
             </div>
           </div>
           <div className="steps-strip">
@@ -110,13 +128,13 @@ export function Library(props: {
                     <b>{EXERCISE_INFO[b.exercise].plural}</b>
                     <span>
                       {b.sets} × {b.target}
-                      {EXERCISE_INFO[b.exercise].unit === "sec" ? " sec" : " reps"} · rest {b.restSec}s
+                      {EXERCISE_INFO[b.exercise].unit === "sec" ? " sec" : " reps"}
                     </span>
                   </div>
                 </div>
                 {i < blocks.length - 1 && (
                   <div className="step-link">
-                    <ChevronRight size={40} />
+                    <ChevronRight size={36} />
                   </div>
                 )}
               </div>
@@ -124,26 +142,32 @@ export function Library(props: {
           </div>
         </div>
 
-        <div className="history glass">
-          <div className="history-head">
-            <h3>Past sessions</h3>
-            <span className="muted small">Select a session for its after-action report</span>
-          </div>
-          {recent.length === 0 && <div className="muted">No sessions yet. Your first workout starts your history.</div>}
-          {recent.map((r) => (
-            <div key={r.id} className={"hist-row" + (f === r.id ? " on" : "")}>
-              <span className="when">{new Date(r.completedAt).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
-              <span className="what">
-                {r.blocks.map((b) => EXERCISE_INFO[b.exercise].plural).join(" · ")}
-              </span>
-              <span className="num">{Math.round(r.durationSec / 60)} min</span>
-              <span className="num">{r.caloriesEst} kcal</span>
-              {r.decision ? <span className={"chip " + r.decision}>{CHIP[r.decision]}</span> : <span />}
-              <ChevronRight size={28} className="go" />
+        <div className="home-row">
+          <section className="glass totals">
+            <h3>All time</h3>
+            <div className="totals-grid">
+              <Tile icon={<Zap size={30} />} v={String(stats?.workouts ?? 0)} l="Workouts" />
+              <Tile icon={<Timer size={30} />} v={hm(stats?.totalSec ?? 0)} l="Total time" />
+              <Tile icon={<Flame size={30} className="fire" />} v={String(stats?.totalKcal ?? 0)} l="Calories (est.)" />
+              <Tile icon={<Trophy size={30} />} v={`${stats?.bestStreak ?? 0}d`} l="Best streak" />
             </div>
-          ))}
+          </section>
+
+          <section className="glass history2">
+            <h3>Past sessions</h3>
+            {recent.length === 0 && <div className="muted">Your first workout starts your history.</div>}
+            {recent.map((r) => (
+              <div key={r.id} className={"hist2" + (f === r.id ? " on" : "")}>
+                <span className="when">{new Date(r.completedAt).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+                <span className="num muted">
+                  {Math.round(r.durationSec / 60)} min · {r.caloriesEst} kcal
+                </span>
+                {r.decision ? <span className={"chip " + r.decision}>{CHIP[r.decision]}</span> : <span />}
+                <ChevronRight size={26} className="go" />
+              </div>
+            ))}
+          </section>
         </div>
-        <p className="hint">▲▼ move · ◀ profile · Select · Back to exit</p>
       </section>
     </main>
   );
@@ -159,12 +183,12 @@ function Row({ icon, label, value }: { icon: React.ReactNode; label: string; val
   );
 }
 
-function Check({ icon, label }: { icon: React.ReactNode; label: string }) {
+function Tile({ icon, v, l }: { icon: React.ReactNode; v: string; l: string }) {
   return (
-    <div className="check">
-      <Circle className="no" size={26} />
-      {icon}
-      {label}
+    <div className="tile2">
+      <div className="muted">{icon}</div>
+      <div className="v num">{v}</div>
+      <div className="l">{l}</div>
     </div>
   );
 }

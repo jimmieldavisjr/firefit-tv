@@ -99,7 +99,7 @@ describe("workouts", () => {
     lambdaSend.mockResolvedValue({});
     const r = await handler(ev("POST /workouts", { body: JSON.stringify(fixture) }));
     expect(r.statusCode).toBe(201);
-    expect(send).toHaveBeenCalledTimes(7); // workout + (metrics, best) per exercise
+    expect(send).toHaveBeenCalledTimes(9); // workout + stats get/put + (metrics, best) per exercise
     expect(lambdaSend).toHaveBeenCalledOnce();
     expect(lambdaSend.mock.calls[0][0].input.InvocationType).toBe("Event");
   });

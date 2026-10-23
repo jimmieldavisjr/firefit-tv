@@ -107,8 +107,8 @@ export function Workout(props: {
           <div className="glow" />
           <Ring
             id="repRing"
-            size={300}
-            stroke={22}
+            size={270}
+            stroke={20}
             p={progress / b.target}
             ticks={timed ? 0 : b.target}
             filledTicks={progress}
@@ -120,10 +120,6 @@ export function Workout(props: {
             <span className={"ring-n num" + (timed ? " timed" : "")}>{timed ? mmss(progress) : progress}</span>
             <span className="ring-d">{timed ? `/ ${mmss(b.target)} hold` : `/ ${b.target} reps`}</span>
           </div>
-        </div>
-        <div className="w-time">
-          <div className="v num">{mmss(elapsedSec(w, now))}</div>
-          <div className="l">Workout time</div>
         </div>
         <div className="w-metrics">
           {timed ? (
@@ -180,16 +176,6 @@ export function Workout(props: {
       <aside className="w-right">
         <NextCard title="Up next" {...upNext} />
         <NextCard title="Then" {...then} />
-        <div className="glass strong rest-card">
-          <div className="rest-ring">
-            <Ring id="restRing" size={116} stroke={9} p={w.phase === "rest" ? restLeft / Math.max(1, b.restSec) : 1} from="#3b9cff" to="#7cc0ff" />
-            <div className="v num">{mmss(w.phase === "rest" ? restLeft : b.restSec)}</div>
-          </div>
-          <div>
-            <div className="t">{w.phase === "rest" ? "Resting" : "Rest after set"}</div>
-            <div className="s">{lastSetOfBlock ? (nextBlock ? `Then ${EXERCISE_INFO[nextBlock.exercise].plural.toLowerCase()}` : "Last set: finish strong") : `Get ready for set ${w.set + 1}`}</div>
-          </div>
-        </div>
       </aside>
 
       {live === "active" && cue && (

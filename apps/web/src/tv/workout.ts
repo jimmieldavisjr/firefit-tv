@@ -192,5 +192,9 @@ export function toWorkoutInput(s: SessionState, kg: number): WorkoutInput {
     activeSec: Math.round(activeMs(s, now) / 1000),
     caloriesEst: caloriesEst(s, now, kg),
     bodyWeightKg: kg,
+    localDate: (() => {
+      const d = new Date(now);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    })(),
   };
 }

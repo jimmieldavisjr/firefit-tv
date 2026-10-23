@@ -5,8 +5,9 @@ import { randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto
 import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
 import { GetCommand, PutCommand, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { z } from "zod";
-import { NewProfile, ProfileId, SessionPlan, WorkoutInput, type ProfileSummary, type ProfileView, type SessionReport } from "@firefit/shared";
+import { NewProfile, ProfileId, SessionPlan, WorkoutInput, type LifetimeStats, type ProfileSummary, type ProfileView, type SessionReport } from "@firefit/shared";
 import { db, PROFILES, T, userKey } from "./db";
+import { deriveStats, EMPTY_STATS, nextStats } from "./stats";
 import { normalize, type Session } from "./trends";
 
 const lambda = new LambdaClient({});
@@ -125,6 +126,14 @@ export const handler = async (e: APIGatewayProxyEventV2): Promise<APIGatewayProx
         await db.send(
           new PutCommand({ TableName: T, Item: { pk: U, sk: `WORKOUT#${completedAt}#${id}`, id, completedAt, ...w } }),
         );
+        // lifetime totals + day streak (sk STATS)
+        const { Item: prevStats } = await db.send(new GetCommand({ TableName: T, Key: { pk: U, sk: "STATS" } }));
+        const stats = nextStats((prevStats as LifetimeStats | undefined) ?? EMPTY_STATS, {
+          durationSec: w.durationSec,
+          caloriesEst: w.caloriesEst,
+          date: w.localDate ?? completedAt.slice(0, 10),
+        });
+        await db.send(new PutCommand({ TableName: T, Item: { pk: U, sk: "STATS", ...stats } }));
         for (const b of w.blocks) {
           const total = b.perSet.reduce((a, n) => a + n, 0);
           const Key = { pk: U, sk: `METRIC#${b.exercise}` };
@@ -188,6 +197,14 @@ export const handler = async (e: APIGatewayProxyEventV2): Promise<APIGatewayProx
             ...(stored.lastDecision ? { lastDecision: stored.lastDecision as ProfileView["profile"]["lastDecision"] } : {}),
           },
           metrics: Object.fromEntries(by("METRIC#").map((m) => [String(m.sk).slice(7), strip(m)])),
+          stats: by("STATS")[0]
+            ? ({ ...EMPTY_STATS, ...strip(by("STATS")[0]) } as LifetimeStats)
+            : deriveStats(
+                by("WORKOUT#")
+                  .map((i) => normalize(i))
+                  .filter((x): x is Session => !!x)
+                  .map((x) => ({ durationSec: x.durationSec, caloriesEst: x.caloriesEst, date: x.localDate ?? x.completedAt.slice(0, 10) })),
+              ),
           recent: by("WORKOUT#")
             .reverse()
             .slice(0, 5)

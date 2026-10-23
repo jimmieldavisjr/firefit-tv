@@ -1,6 +1,6 @@
 // Shared 10-foot UI pieces: top bar, exercise icon, gradient rings.
 import { useEffect, useState } from "react";
-import { BicepsFlexed, Flame, Hourglass, PersonStanding } from "lucide-react";
+import { BicepsFlexed, Flame, Hourglass, PersonStanding, User } from "lucide-react";
 import type { Exercise } from "@firefit/shared";
 
 export function ExerciseIcon({ exercise, size = 40 }: { exercise: Exercise; size?: number }) {
@@ -40,8 +40,8 @@ export function TopBar({ step, who = "Guest" }: { step: Step; who?: string }) {
         ))}
       </nav>
       <div className="right">
-        <span className="who">
-          <span className="mini-avatar">{initials(who)}</span> {who}
+        <span className="who" title={who}>
+          <User size={30} /> {initials(who)}
         </span>
         <span className="num">{clock.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
       </div>

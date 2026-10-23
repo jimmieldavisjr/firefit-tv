@@ -79,6 +79,8 @@ export const WorkoutInput = z.object({
   activeSec: z.number().min(0).max(7200),
   caloriesEst: z.number().min(0).max(2000),
   bodyWeightKg: z.number().min(30).max(250),
+  /** the TV's local calendar date (YYYY-MM-DD) so day streaks follow the user's day, not UTC */
+  localDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
 });
 export type WorkoutInput = z.infer<typeof WorkoutInput>;
 
@@ -118,10 +120,13 @@ export type CoachPlan = CoachRun & Plan & { source: "agent" | "rules"; toolCalls
 
 export type MetricSummary = { sessions: number; totalReps: number; bestReps: number; lastAt?: string };
 
+export type LifetimeStats = { workouts: number; totalSec: number; totalKcal: number; currentStreak: number; bestStreak: number; lastDate: string | null };
+
 // GET /profile -> library screen
 export type ProfileView = {
   profile: { name: string; goal: string; level: string; weightKg?: number; next?: SessionPlan; focusCue?: string; lastDecision?: Decision };
   metrics: Partial<Record<Exercise, MetricSummary>>;
+  stats: LifetimeStats;
   recent: { id: string; completedAt: string; durationSec: number; caloriesEst: number; blocks: Omit<BlockResult, "perRep">[]; decision?: Decision }[];
 };
 
