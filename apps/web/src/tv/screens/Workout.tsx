@@ -282,7 +282,10 @@ function RestCard({ sec, title, sub }: { sec: number; title: string; sub: string
   return (
     <div className="glass strong rest-card">
       <div className="rest-ring">
-        <RepRing id="restRing" size={104} p={sec ? 1 : 0} segments={1} color={["#3b9cff", "#7cc4ff"]} />
+        <svg width="88" height="88" viewBox="0 0 88 88">
+          <circle cx="44" cy="44" r="40" fill="none" stroke="rgba(255,255,255,0.12)" strokeWidth="3" />
+          {sec > 0 && <circle cx="44" cy="44" r="40" fill="none" stroke="var(--blue)" strokeWidth="3" strokeLinecap="round" />}
+        </svg>
         <span className="num">{sec ? mmss(sec) : "✓"}</span>
       </div>
       <div>
