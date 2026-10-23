@@ -120,7 +120,7 @@ export function Ring(props: {
 
 /**
  * The rep counter ring: a thin track split into one segment per target rep (or a smooth track for timed holds),
- * a glowing progress arc that eases forward, and a faint inner arc that follows the live descent.
+ * a progress arc that eases forward (no SVG glow filter: too costly over live video on the stick), and a faint inner arc that follows the live descent.
  */
 export function RepRing(props: { size: number; p: number; segments: number; live?: number; color: [string, string]; id: string }) {
   const { size, p, segments, live, color, id } = props;
@@ -140,13 +140,6 @@ export function RepRing(props: { size: number; p: number; segments: number; live
           <stop offset="0" stopColor={color[0]} />
           <stop offset="1" stopColor={color[1]} />
         </linearGradient>
-        <filter id={`${id}-glow`} x="-30%" y="-30%" width="160%" height="160%">
-          <feGaussianBlur stdDeviation="6" result="b" />
-          <feMerge>
-            <feMergeNode in="b" />
-            <feMergeNode in="SourceGraphic" />
-          </feMerge>
-        </filter>
       </defs>
       <g transform={`rotate(-90 ${cx} ${cx})`}>
         <circle cx={cx} cy={cx} r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={segments > 1 ? `${seg} ${gap}` : undefined} />
@@ -161,7 +154,6 @@ export function RepRing(props: { size: number; p: number; segments: number; live
           strokeLinecap="round"
           strokeDasharray={c}
           strokeDashoffset={c * (1 - clamp(p))}
-          filter={p > 0 ? `url(#${id}-glow)` : undefined}
         />
         {live !== undefined && (
           <circle

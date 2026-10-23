@@ -6,27 +6,19 @@
 .boot-logo { width: 560px; height: auto; filter: drop-shadow(0 10px 40px rgba(255, 106, 0, 0.25)); }
 .boot-row { display: flex; align-items: center; gap: 18px; font-size: 30px; color: var(--muted); }
 
-/* Workout glass: a dark smoked pane with a blurred backdrop, a light-catching rim (bright top-left, fading out,
-   faint again bottom-right) and a deep drop shadow so the cards float above the video. */
+/* Workout glass over live video. Measured on the Fire TV Stick 4K Max (Chrome 118 WebView): backdrop blur, big soft
+   shadows, a masked rim and SVG glow filters re-composite every video frame and dropped the page to ~5 fps. This flat
+   version looks the same (dark smoked pane, light top-left edge, short shadow) and runs at ~50 fps. */
 .workout .glass {
-  --glass-tint: rgba(9, 12, 19, 0.66);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.015) 38%, rgba(255, 255, 255, 0) 100%), var(--glass-tint);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 40%), rgba(9, 12, 19, 0.76);
   border: 1px solid rgba(255, 255, 255, 0.10);
-  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.55), 0 8px 22px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.20), inset 0 0 0 1px rgba(255, 255, 255, 0.02);
-  backdrop-filter: blur(26px) saturate(140%) brightness(0.8);
-  -webkit-backdrop-filter: blur(26px) saturate(140%) brightness(0.8);
+  border-top-color: rgba(255, 255, 255, 0.34);
+  border-left-color: rgba(255, 255, 255, 0.20);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
-.workout .glass::before {
-  content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; pointer-events: none;
-  background: linear-gradient(150deg, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0.14) 22%, rgba(255, 255, 255, 0) 48%, rgba(255, 255, 255, 0) 70%, rgba(255, 255, 255, 0.16) 100%);
-  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
-  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
-}
-/* The rim must stay inside its own card: every unpositioned glass element becomes the containing block
-   (zero specificity, so cards that are absolutely placed keep their position). The top bar gets no rim. */
-:where(.workout .glass) { position: relative; }
-.workout .topbar .glass::before { display: none; }
-.workout .overlay.glass { --glass-tint: rgba(8, 11, 18, 0.82); }
+.workout .overlay.glass { background: rgba(8, 11, 18, 0.88); }
 .workout .w-bottom .end-btn { position: relative; z-index: 1; }
 
 /* Right column now holds Up next, Then and Rest after set */

@@ -32,7 +32,7 @@ const room = params.get("room");
 const token = params.get("t");
 const STREAM_LONG_SIDE = 960; // Gate 0 decision: 960x540 @ 24 fps toward the 1.3 GB Fire TV Stick
 const STREAM_FPS = 24;
-const PUBLISH_MS = 100; // state messages at 10 Hz
+const PUBLISH_MS = 66; // state messages at 15 Hz: the TV meter and cues feel immediate
 
 let pose: PoseModel;
 let send: (m: PhoneMsg) => void = () => {};

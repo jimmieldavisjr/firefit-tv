@@ -148,7 +148,7 @@ h1, h2, h3, p { margin: 0; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- Workout HUD over live video ---------- */
-.remote-video { position: fixed; inset: 0; width: 1920px; height: 1080px; object-fit: contain; background: #05070b; visibility: hidden; z-index: -1; }
+.remote-video { position: fixed; inset: 0; width: 1920px; height: 1080px; object-fit: cover; background: #05070b; visibility: hidden; z-index: -1; }
 .remote-video.on { visibility: visible; }
 .workout { position: fixed; inset: 0; }
 .workout::before { content: ""; position: absolute; inset: 0; pointer-events: none;

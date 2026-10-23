@@ -86,11 +86,11 @@ export async function loadPose(prefer: "full" | "lite", progress: Progress = () 
   throw new Error(poseDebug.errors.join(" | "));
 }
 
-// 4:3 is the sensor's native shape: asking for 16:9 crops the top and bottom off, which is exactly where feet and head go.
+// 16:9 landscape so the picture fills the whole TV screen (the TV shows it edge to edge).
 export async function openCamera(facing: "user" | "environment"): Promise<MediaStream> {
   const stream = await navigator.mediaDevices.getUserMedia({
     audio: false,
-    video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 960 }, aspectRatio: { ideal: 4 / 3 }, frameRate: { ideal: 30 } },
+    video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 }, aspectRatio: { ideal: 16 / 9 }, frameRate: { ideal: 30 } },
   });
   // Zoom all the way out when the camera allows it (some phones expose their wide lens as zoom < 1).
   const track = stream.getVideoTracks()[0];

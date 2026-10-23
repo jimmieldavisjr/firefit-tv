@@ -106,6 +106,14 @@ export async function tvConnect(opts: {
   const pc = new RTCPeerConnection({ iceServers: ICE });
   let dc: RTCDataChannel | undefined;
   pc.ontrack = (e) => {
+    // Live mirror, not a movie: play frames as soon as they arrive instead of buffering for smoothness.
+    const rx = e.receiver as RTCRtpReceiver & { jitterBufferTarget?: number | null; playoutDelayHint?: number };
+    try {
+      rx.jitterBufferTarget = 0; // current name
+      rx.playoutDelayHint = 0; // older Chromium WebViews
+    } catch {
+      /* not supported */
+    }
     opts.video.srcObject = e.streams[0];
     opts.video.play().catch(() => {});
   };

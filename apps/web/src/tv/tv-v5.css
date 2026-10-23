@@ -11,8 +11,8 @@
 .rc-ring::after { content: ""; position: absolute; inset: 30px; border-radius: 50%; pointer-events: none; opacity: 0; transition: opacity 600ms ease, box-shadow 600ms ease; }
 .rc-ring.good::after { opacity: 1; box-shadow: 0 0 60px 6px rgba(52, 211, 153, 0.22); }
 .rc-ring.cue::after { opacity: 1; box-shadow: 0 0 60px 6px rgba(251, 191, 36, 0.22); }
-.rep-arc { transition: stroke-dashoffset 700ms cubic-bezier(0.22, 1, 0.36, 1); }
-.rc-ring .live-arc { transition: stroke-dashoffset 180ms linear; }
+.rep-arc { transition: stroke-dashoffset 320ms cubic-bezier(0.22, 1, 0.36, 1); }
+.rc-ring .live-arc { transition: stroke-dashoffset 90ms linear; }
 .rc-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
 .rc-n { font-size: 104px; font-weight: 800; line-height: 1; letter-spacing: -2px; animation: countIn 360ms cubic-bezier(0.22, 1, 0.36, 1); }
 @keyframes countIn { from { opacity: 0.35; transform: translateY(10px) scale(0.96); } to { opacity: 1; transform: none; } }
