@@ -54,6 +54,10 @@ if (!window.isSecureContext) {
 }
 if (room) ui.startMsg.textContent = `Pairing with room ${room}. ` + ui.startMsg.textContent;
 
+// Surface unexpected errors on screen: there is no console on a phone propped on a tripod.
+window.addEventListener("error", (e) => (ui.status.textContent = `Error: ${e.message}`));
+window.addEventListener("unhandledrejection", (e) => (ui.status.textContent = `Error: ${(e.reason as Error)?.message ?? e.reason}`));
+
 // Start downloading the pose model right away, while the user is still setting the phone up.
 const loadMsg = document.createElement("p");
 loadMsg.id = "load-msg";
@@ -74,13 +78,13 @@ async function start() {
   ui.go.textContent = "Opening camera…";
   const cam = await openCamera(params.get("cam") === "back" ? "environment" : "user");
   video.srcObject = cam;
-  await video.play();
+  ui.go.textContent = "Starting video…";
+  await Promise.race([video.play(), new Promise((r) => setTimeout(r, 4000))]); // never block on play()
   ui.go.textContent = "Waiting for pose model…";
   pose = await posePromise;
-  await navigator.wakeLock?.request("screen").catch(() => {}); // keep the phone awake on the tripod
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") navigator.wakeLock?.request("screen").catch(() => {});
-  });
+  const keepAwake = () => navigator.wakeLock?.request("screen").catch(() => {}); // fire and forget
+  keepAwake();
+  document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && keepAwake());
 
   sizeCanvas();
   ui.start.hidden = true;

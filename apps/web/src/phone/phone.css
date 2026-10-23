@@ -1,5 +1,8 @@
+/* id rules below set display:flex, which would otherwise override the hidden attribute */
+[hidden] { display: none !important; }
 html, body { margin: 0; height: 100%; background: #0b0f17; color: #e8edf5; font: 16px system-ui, sans-serif; overflow: hidden; }
-#cam { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+/* Rendered full-size behind the opaque canvas: Android Chrome may pause video it considers invisible */
+#cam { position: fixed; inset: 0; width: 100vw; height: 100vh; object-fit: contain; z-index: -1; }
 #out { position: fixed; inset: 0; width: 100vw; height: 100vh; object-fit: contain; display: block; }
 #out.rep { outline: 10px solid #4ade80; outline-offset: -10px; }
 
