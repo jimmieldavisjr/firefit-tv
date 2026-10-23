@@ -18,4 +18,4 @@ export const EXERCISE_INFO: Record<Exercise, { name: string; plural: string; uni
 };
 
 export const LEVELS = ["Beginner", "Intermediate", "Advanced"] as const;
-export const GOALS = ["Strength + form", "Lose weight", "Build endurance", "Stay active"] as const;
+export const GOALS = ["Strength", "Form", "Endurance", "Active"] as const;

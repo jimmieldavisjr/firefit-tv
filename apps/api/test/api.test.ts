@@ -150,7 +150,7 @@ describe("profile", () => {
 describe("profiles", () => {
   it("creates a profile with an 8-char id and seeds its PROFILE item", async () => {
     send.mockResolvedValue({});
-    const r = await handler(ev("POST /profiles", { body: JSON.stringify({ name: "Jimmie Davis", level: "Beginner", goal: "Strength + form", weightKg: 84 }) }));
+    const r = await handler(ev("POST /profiles", { body: JSON.stringify({ name: "Jimmie Davis", level: "Beginner", goal: "Strength", weightKg: 84 }) }));
     expect(r.statusCode).toBe(201);
     const body = JSON.parse(r.body!);
     expect(body.id).toMatch(/^[a-z0-9]{8}$/);
@@ -158,7 +158,7 @@ describe("profiles", () => {
   });
 
   it("rejects incomplete profiles and malformed profile ids", async () => {
-    const bad = await handler(ev("POST /profiles", { body: JSON.stringify({ name: "", level: "Beginner", goal: "Strength + form", weightKg: 84 }) }));
+    const bad = await handler(ev("POST /profiles", { body: JSON.stringify({ name: "", level: "Beginner", goal: "Strength", weightKg: 84 }) }));
     const badId = await handler(ev("GET /profile", { headers: { "x-profile-id": "../../etc" } }));
     expect([bad.statusCode, badId.statusCode]).toEqual([400, 400]);
     expect(send).not.toHaveBeenCalled();

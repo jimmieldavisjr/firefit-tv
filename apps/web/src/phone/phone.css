@@ -22,9 +22,17 @@ html, body { margin: 0; height: 100%; background: #0b0f17; color: #e8edf5; font:
 
 #start { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 18px; padding: 24px; text-align: center; background: #0b0f17; }
-#start h1 { margin: 0; font-size: 56px; }
-#start h1 span { color: #ff7a1a; font-style: italic; }
+#start .logo { width: min(70vw, 420px); height: auto; }
 #start p { margin: 0; max-width: 520px; color: #9aa6b8; font-size: 18px; }
 #load-msg { margin: 0; min-height: 1.4em; color: #ffb15c; font: 15px ui-monospace, monospace; }
 #go { background: #ff7a1a; color: #fff; border: 0; border-radius: 14px; padding: 16px 28px; font-size: 20px; font-weight: 700; }
 #go:disabled { opacity: 0.6; }
+
+/* Landscape is required: in portrait the TV would show a narrow, cropped, too-close picture */
+#rotate { position: fixed; inset: 0; z-index: 10; display: none; flex-direction: column; align-items: center; justify-content: center;
+  gap: 14px; padding: 32px; text-align: center; background: #0b0f17; }
+#rotate h2 { margin: 18px 0 0; font-size: 28px; }
+#rotate p { margin: 0; max-width: 320px; color: #9aa6b8; font-size: 17px; }
+#rotate .phone-icon { width: 64px; height: 112px; border: 5px solid #ff7a1a; border-radius: 14px; animation: rotate-me 2.2s ease-in-out infinite; }
+@keyframes rotate-me { 0%, 25% { transform: rotate(0); } 55%, 100% { transform: rotate(-90deg); } }
+@media (orientation: portrait) { #rotate { display: flex; } }

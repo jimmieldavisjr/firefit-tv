@@ -13,6 +13,9 @@ import { normalize, type Session } from "./trends";
 
 const lambda = new LambdaClient({});
 const ROOM_TTL_SEC = 900;
+// Goals are one word now; profiles created earlier keep their old label in DynamoDB and are shown with the new one.
+const LEGACY_GOALS: Record<string, string> = { "Strength + form": "Strength", "Build endurance": "Endurance", "Stay active": "Active", "Lose weight": "Active" };
+const goalName = (g: unknown) => (typeof g === "string" ? (LEGACY_GOALS[g] ?? g) : "Strength");
 const now = () => Math.floor(Date.now() / 1000);
 
 const res = (statusCode: number, body?: unknown): APIGatewayProxyStructuredResultV2 => ({
@@ -49,7 +52,7 @@ export const handler = async (e: APIGatewayProxyEventV2): Promise<APIGatewayProx
         const { Items = [] } = await db.send(
           new QueryCommand({ TableName: T, KeyConditionExpression: "pk = :p", ExpressionAttributeValues: { ":p": PROFILES } }),
         );
-        const profiles = Items.map(({ pk: _pk, sk: _sk, ...rest }) => rest as ProfileSummary);
+        const profiles = Items.map(({ pk: _pk, sk: _sk, ...rest }) => ({ ...rest, goal: goalName(rest.goal) }) as ProfileSummary);
         return res(200, { profiles: profiles.sort((a, b) => a.createdAt.localeCompare(b.createdAt)) });
       }
 
@@ -205,7 +208,7 @@ export const handler = async (e: APIGatewayProxyEventV2): Promise<APIGatewayProx
         const view: ProfileView = {
           profile: {
             name: (stored.name as string) ?? process.env.PROFILE_NAME ?? "Guest",
-            goal: (stored.goal as string) ?? "Strength + form",
+            goal: goalName(stored.goal),
             level: (stored.level as string) ?? "Beginner",
             weightKg: Number(stored.weightKg ?? process.env.PROFILE_WEIGHT_KG ?? 80),
             ...(next.success ? { next: next.data } : {}),

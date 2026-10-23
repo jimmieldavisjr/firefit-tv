@@ -57,4 +57,9 @@ crop.resize((640, 360), Image.LANCZOS).save(RES / "drawable-xhdpi/banner.png", o
 flame = card.crop((int(w * 0.13), int(h * 0.17), int(w * 0.13) + int(h * 0.56), int(h * 0.17) + int(h * 0.56)))
 flame.resize((96, 96), Image.LANCZOS).save(RES / "mipmap-xhdpi/ic_launcher.png", optimize=True)
 flame.resize((192, 192), Image.LANCZOS).save(RES / "mipmap-xxxhdpi/ic_launcher.png", optimize=True)
+# In-app wordmark: the owner's transparent FireFIT logo, trimmed to its alpha box (TV top bar, boot, phone page)
+logo = Image.open(REF / "logo-transparent.png").convert("RGBA")
+logo = logo.crop(logo.getchannel("A").getbbox())
+logo.resize((640, round(640 * logo.height / logo.width)), Image.LANCZOS).save(WEB / "logo.png", optimize=True)
+
 print("assets written:", sorted(p.name for p in WEB.iterdir()))

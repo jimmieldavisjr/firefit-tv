@@ -1,4 +1,6 @@
-# FireFIT: a form coach for Fire TV, powered by the phone you already have
+# FireFIT: an AI form mirror for Fire TV, powered by the phone you already have
+
+FireFIT turns your TV into an AI form mirror: on-device computer vision tracks 33 body points and draws a live skeleton over your video, with AR-style real-time form highlights.
 
 Most Fire TVs have no camera. FireFIT uses your phone as one. Start the session with the Fire TV remote, scan a QR code, and prop the phone up. One 10–12 minute session runs **squats, push-ups and a plank**: the phone tracks your body on-device, counts only full-range reps, and times the plank only while your body line is straight. The TV shows you live with a skeleton overlay, rep ring, form check, rests and an estimated calorie count. Afterwards the summary breaks down every set (time between reps, tempo, depth, hold), and an AI coach agent on AWS streams its review onto the TV, **reads it aloud with Amazon Polly**, and **decides your next session**.
 

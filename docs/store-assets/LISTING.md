@@ -13,13 +13,13 @@ On the Fire TV home screen, an app's **cover background**, **tile** and **short 
 Shoe logos in the photos are blurred (third-party trademark).
 
 ## Title
-FireFIT: AI Form Coach
+FireFIT: AI Form Mirror
 
 ## Short description (shown on the Fire TV cover)
-Your phone becomes the camera. FireFIT tracks every squat, push-up and plank in real time on your Fire TV, then an AI coach reviews your form and plans your next workout.
+FireFIT turns your TV into an AI form mirror: on-device computer vision tracks 33 body points and draws a live skeleton over your video, with AR-style real-time form highlights.
 
 ## Long description
-FireFIT turns your Fire TV and the phone you already own into a personal form coach.
+FireFIT turns your TV into an AI form mirror: on-device computer vision tracks 33 body points and draws a live skeleton over your video, with AR-style real-time form highlights. Your phone is the camera, so there's nothing extra to buy.
 
 • No extra hardware: scan a QR code and your phone becomes the camera. No app install needed on the phone.
 • Real-time tracking: on-device pose tracking counts only full-range reps, times planks only while your body is straight, and flags form issues like caving knees or sagging hips.
@@ -32,7 +32,7 @@ FireFIT turns your Fire TV and the phone you already own into a personal form co
 Calorie figures are estimates. FireFIT provides training feedback, not medical advice.
 
 ## Keywords
-fitness, workout, home workout, personal trainer, form coach, squats, push-ups, plank, AI coach, exercise tracker
+fitness, workout, home workout, form mirror, computer vision, personal trainer, squats, push-ups, plank, AI coach, exercise tracker
 
 ## Category
 Health & Fitness

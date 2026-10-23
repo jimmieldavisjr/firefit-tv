@@ -154,6 +154,11 @@ export function Workout(props: {
       <aside className="w-right">
         <NextCard title="Up next" {...upNext} />
         <NextCard title="Then" {...then} />
+        <RestCard
+          sec={lastSetOfBlock ? (nextBlock ? TRANSITION_SEC : 0) : b.restSec}
+          title={lastSetOfBlock ? (nextBlock ? "Break after set" : "Last set") : "Rest after set"}
+          sub={lastSetOfBlock ? (nextBlock ? `Then ${EXERCISE_INFO[nextBlock.exercise].plural}` : "Coach review next") : `Then set ${w.set + 1} of ${b.sets}`}
+        />
       </aside>
 
       {live === "active" && cue && (
@@ -268,6 +273,21 @@ function NextCard({ title, icon, t, s, img }: { title: string; icon: React.React
           <div className="t">{t}</div>
           <div className="s">{s}</div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+function RestCard({ sec, title, sub }: { sec: number; title: string; sub: string }) {
+  return (
+    <div className="glass strong rest-card">
+      <div className="rest-ring">
+        <RepRing id="restRing" size={104} p={sec ? 1 : 0} segments={1} color={["#3b9cff", "#7cc4ff"]} />
+        <span className="num">{sec ? mmss(sec) : "✓"}</span>
+      </div>
+      <div>
+        <div className="t">{title}</div>
+        <div className="s">{sub}</div>
       </div>
     </div>
   );

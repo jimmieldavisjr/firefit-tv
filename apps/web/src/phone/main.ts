@@ -67,8 +67,16 @@ ui.start.appendChild(loadMsg);
 const posePromise = loadPose(params.get("model") === "lite" ? "lite" : "full", (m) => (loadMsg.textContent = m));
 posePromise.catch((err) => (loadMsg.textContent = `Pose model failed: ${(err as Error).message}`));
 
+const portrait = matchMedia("(orientation: portrait)");
+
 ui.go.addEventListener("click", () => {
+  if (portrait.matches) return; // the rotate prompt covers the page until the phone is sideways
   ui.go.disabled = true;
+  // Full screen + landscape lock keeps the view steady once the phone is propped up (Android Chrome; ignored elsewhere).
+  document.documentElement
+    .requestFullscreen?.({ navigationUI: "hide" })
+    .then(() => (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> }).lock?.("landscape"))
+    .catch(() => {});
   start().catch((err) => {
     console.error(err);
     ui.go.disabled = false;

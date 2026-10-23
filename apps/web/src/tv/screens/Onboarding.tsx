@@ -19,10 +19,25 @@ export function Onboarding(props: { first: boolean; busy: boolean; error?: strin
   const [lbs, setLbs] = useState(175);
   const [hint, setHint] = useState("");
   const input = useRef<HTMLInputElement>(null);
+  const leftInputAt = useRef(0);
+  const blurredAt = useRef(0);
   const r = ROWS[row];
 
-  useRemote((k) => {
+  useRemote((k, fromInput) => {
     if (props.busy) return;
+    if (fromInput) {
+      // Enter / Next on the on-screen keyboard: go to Level. Swallow the duplicate Enter some keyboards send.
+      leftInputAt.current = Date.now();
+      if (k === "select" || k === "down") setRow(1);
+      return;
+    }
+    // The Fire TV keyboard's Next button moves focus off the field first, then sends Enter.
+    if (k === "select" && r === "name" && Date.now() - blurredAt.current < 800) {
+      leftInputAt.current = Date.now();
+      setRow(1);
+      return;
+    }
+    if (k === "select" && Date.now() - leftInputAt.current < 600) return;
     if (k === "up" || k === "down") {
       sfx.nav();
       setRow((n) => Math.max(0, Math.min(ROWS.length - 1, n + (k === "down" ? 1 : -1))));
@@ -66,12 +81,12 @@ export function Onboarding(props: { first: boolean; busy: boolean; error?: strin
             className="name-input"
             value={name}
             maxLength={40}
+            onBlur={() => (blurredAt.current = Date.now())}
             placeholder="Your name"
             onChange={(e) => {
               setName(e.target.value);
               setHint("");
             }}
-            onKeyDown={(e) => e.key === "Enter" && setRow(1)}
           />
         </Field>
         <Field on={r === "level"} icon={<Gauge size={34} />} label="Level">

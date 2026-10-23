@@ -3,14 +3,14 @@
 > **Rule:** before pasting, every claim below must match something verified in [PROGRESS.md](PROGRESS.md) (Device or Prod level). Delete or rewrite anything that isn't.
 
 **Name:** FireFIT
-**Tagline:** A form coach for Fire TV, powered by the phone you already have.
+**Tagline:** An AI form mirror for Fire TV, powered by the phone you already have.
 **Track:** Fire TV · **Mini challenge:** AWS Builder
 
 ## Inspiration
 Most Fire TV homes have a phone within arm's reach but no camera on the TV. Home workout apps play a video and hope you're doing it right. We wanted the TV to watch your form using hardware people already own.
 
 ## What it does
-FireFIT turns a Fire TV and a phone into a form coach. You pick a program with the remote, scan the QR code on the TV, and prop the phone up. The phone tracks 33 body landmarks on device, counts reps only through full range of motion, and flags form problems. The TV shows your live mirrored video with a skeleton overlay, a rep ring, sets and rest, and depth and tempo for every rep. When you finish, the session is saved. An AI coach agent then reviews your history, explains the result, and decides your next workout (progress, hold, deload or technique focus). That plan becomes the recommended workout the next time you open the app.
+FireFIT turns your TV into an AI form mirror: on-device computer vision tracks 33 body points and draws a live skeleton over your video, with AR-style real-time form highlights. You pick a program with the remote, scan the QR code on the TV, and prop the phone up. The phone tracks 33 body landmarks on device, counts reps only through full range of motion, and flags form problems. The TV shows your live mirrored video with a skeleton overlay, a rep ring, sets and rest, and depth and tempo for every rep. When you finish, the session is saved. An AI coach agent then reviews your history, explains the result, and decides your next workout (progress, hold, deload or technique focus). That plan becomes the recommended workout the next time you open the app.
 
 ## How we built it
 - **Fire TV (Fire OS):** a Kotlin WebView shell running a React + TypeScript 10-foot UI, D-pad first.

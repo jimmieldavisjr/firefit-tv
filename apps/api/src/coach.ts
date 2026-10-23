@@ -98,7 +98,7 @@ export const handler = async ({ workoutId, profileId = "guest" }: { workoutId: s
       callback: async () => {
         toolCalls.push("get_profile");
         const { Item } = await db.send(new GetCommand({ TableName: T, Key: { pk: U, sk: "PROFILE" } }));
-        return JSON.stringify(Item ?? { goal: "Strength + form", level: "Beginner" });
+        return JSON.stringify(Item ?? { goal: "Strength", level: "Beginner" });
       },
     }),
     tool({

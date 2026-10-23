@@ -18,7 +18,7 @@ const KEYS: Record<string, RemoteKey> = {
   MediaPause: "playpause",
 };
 
-export function useRemote(handler: (k: RemoteKey) => void) {
+export function useRemote(handler: (k: RemoteKey, fromInput: boolean) => void) {
   const ref = useRef(handler);
   ref.current = handler;
   useEffect(() => {
@@ -30,9 +30,9 @@ export function useRemote(handler: (k: RemoteKey) => void) {
       if (!k) return;
       if (typing) (document.activeElement as HTMLElement).blur();
       e.preventDefault();
-      ref.current(k);
+      ref.current(k, typing);
     };
-    const onBack = () => ref.current("back");
+    const onBack = () => ref.current("back", false);
     window.addEventListener("keydown", onKey);
     window.addEventListener("tv-back", onBack);
     return () => {

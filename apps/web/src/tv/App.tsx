@@ -364,7 +364,10 @@ export function App() {
       {screen !== "workout" && <div className={coverBg ? "cover-bg" : "ambient"} />}
       {screen === "boot" && (
         <div className="boot">
-          <span className="spinner" /> Loading FireFIT…
+          <img className="boot-logo" src="/img/logo.png" alt="FireFIT" />
+          <div className="boot-row">
+            <span className="spinner" /> Loading…
+          </div>
         </div>
       )}
       {screen === "onboard" && (

@@ -81,7 +81,7 @@ export function Library(props: {
             <div className="avatar">{initials(name)}</div>
             <div className="name">{name}</div>
           </div>
-          <Row icon={<Target size={28} />} label="Goal" value={prof?.goal ?? "Strength + form"} />
+          <Row icon={<Target size={28} />} label="Goal" value={prof?.goal ?? "Strength"} />
           <Row icon={<Gauge size={28} />} label="Level" value={prof?.level ?? "Beginner"} />
           <Row icon={<Weight size={28} />} label="Weight" value={`${Math.round((prof?.weightKg ?? 80) * KG_TO_LB)} lb`} />
           <div className={"switch-btn" + (f === "profile" ? " on" : "")}>
