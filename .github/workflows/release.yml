@@ -23,8 +23,15 @@ jobs:
       - uses: gradle/actions/setup-gradle@v5
       - name: Build APK pointing at production
         working-directory: apps/tv-shell
+        env:
+          KEYSTORE_B64: ${{ secrets.FIREFIT_KEYSTORE_B64 }}
+          FIREFIT_KEYSTORE_PASSWORD: ${{ secrets.FIREFIT_KEYSTORE_PASSWORD }}
         run: |
           test -n "${{ vars.FIREFIT_URL }}" || { echo "Set the FIREFIT_URL repository variable"; exit 1; }
+          # Sign with the permanent key so this release updates the previous one in place
+          test -n "$KEYSTORE_B64" || { echo "Set the FIREFIT_KEYSTORE_B64 / FIREFIT_KEYSTORE_PASSWORD secrets"; exit 1; }
+          export FIREFIT_KEYSTORE="$RUNNER_TEMP/firefit-release.jks"
+          echo "$KEYSTORE_B64" | base64 -d > "$FIREFIT_KEYSTORE"
           ./gradlew assembleDebug -PfirefitUrl="${{ vars.FIREFIT_URL }}"
           cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/firefit.apk"
       - name: Create release

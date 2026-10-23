@@ -6,7 +6,7 @@
 #   uv run --with pillow python scripts/make-assets.py
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFilter
+from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 REF = ROOT / "docs/reference"
@@ -53,10 +53,29 @@ crop = card.crop((int(w * 0.08), int(h * 0.12), int(w * 0.92), int(h * 0.12) + i
 crop.resize((320, 180), Image.LANCZOS).save(RES / "drawable/banner.png", optimize=True)
 crop.resize((640, 360), Image.LANCZOS).save(RES / "drawable-xhdpi/banner.png", optimize=True)
 
-# Icon: the flame, square
-flame = card.crop((int(w * 0.13), int(h * 0.17), int(w * 0.13) + int(h * 0.56), int(h * 0.17) + int(h * 0.56)))
-flame.resize((96, 96), Image.LANCZOS).save(RES / "mipmap-xhdpi/ic_launcher.png", optimize=True)
-flame.resize((192, 192), Image.LANCZOS).save(RES / "mipmap-xxxhdpi/ic_launcher.png", optimize=True)
+# Icon. Fire OS shows a sideloaded app's square icon (not its banner) in "Recently used apps", centred in a 16:9 tile,
+# so the icon carries the whole FireFIT wordmark: the owner's transparent logo on a blurred, darkened crop of the
+# app-card fire art (a corner without lettering).
+logo_full = Image.open(REF / "logo-transparent.png").convert("RGBA")
+logo_full = logo_full.crop(logo_full.getchannel("A").getbbox())
+
+
+def icon(size: int) -> Image.Image:
+    side = round(h * 0.4)  # bottom-right corner of the card: fire wave and embers, below the lettering
+    bg = card.crop((w - side, h - side, w, h)).resize((size, size), Image.LANCZOS)
+    bg = ImageEnhance.Brightness(bg.filter(ImageFilter.GaussianBlur(size / 48))).enhance(0.7).convert("RGBA")
+    lw = round(size * 0.88)
+    mark = logo_full.resize((lw, round(lw * logo_full.height / logo_full.width)), Image.LANCZOS)
+    bg.alpha_composite(mark, ((size - mark.width) // 2, (size - mark.height) // 2))
+    return bg.convert("RGB")
+
+
+for folder, px in (("mipmap-mdpi", 48), ("mipmap-hdpi", 72), ("mipmap-xhdpi", 96), ("mipmap-xxhdpi", 144), ("mipmap-xxxhdpi", 192)):
+    (RES / folder).mkdir(parents=True, exist_ok=True)
+    icon(px * 2).resize((px, px), Image.LANCZOS).save(RES / folder / "ic_launcher.png", optimize=True)
+icon(512).save(STORE / "icon-large-512.png", optimize=True)
+icon(228).resize((114, 114), Image.LANCZOS).save(STORE / "icon-small-114.png", optimize=True)
+
 # In-app wordmark: the owner's transparent FireFIT logo, trimmed to its alpha box (TV top bar, boot, phone page)
 logo = Image.open(REF / "logo-transparent.png").convert("RGBA")
 logo = logo.crop(logo.getchannel("A").getbbox())
