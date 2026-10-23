@@ -34,10 +34,10 @@ describe("FireFitStack", () => {
     t.hasResourceProperties("AWS::DynamoDB::GlobalTable", { TimeToLiveSpecification: { AttributeName: "ttl", Enabled: true } });
   });
 
-  it("exposes exactly the nine API routes", () => {
+  it("exposes exactly the ten API routes", () => {
     const routes = Object.values(t.findResources("AWS::ApiGatewayV2::Route")).map((r) => r.Properties.RouteKey);
     expect(routes.sort()).toEqual(
-      ["GET /profile", "GET /profiles", "POST /profiles", "GET /workouts/{id}", "GET /rooms/{code}/{kind}", "GET /workouts/{id}/coach", "POST /rooms", "POST /workouts", "PUT /rooms/{code}/{kind}"].sort(),
+      ["GET /profile", "GET /profiles", "POST /profiles", "GET /workouts/{id}", "GET /workouts/{id}/voice", "GET /rooms/{code}/{kind}", "GET /workouts/{id}/coach", "POST /rooms", "POST /workouts", "PUT /rooms/{code}/{kind}"].sort(),
     );
   });
 
@@ -47,6 +47,12 @@ describe("FireFitStack", () => {
     });
     t.hasResourceProperties("AWS::ApiGatewayV2::Api", {
       CorsConfiguration: Match.objectLike({ AllowHeaders: ["content-type", "x-room-token", "x-profile-id"] }),
+    });
+  });
+
+  it("lets ApiFn call Polly for the read-aloud report", () => {
+    t.hasResourceProperties("AWS::IAM::Policy", {
+      PolicyDocument: { Statement: Match.arrayWith([Match.objectLike({ Action: "polly:SynthesizeSpeech" })]) },
     });
   });
 

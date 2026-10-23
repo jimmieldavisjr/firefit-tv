@@ -94,7 +94,12 @@ export const Plan = z.object({
   insights: z
     .array(z.string().max(200))
     .max(5)
+    .default([])
     .describe("2-4 short, specific improvements, each naming an exercise and a measured number"),
+  // the after-action report, also read aloud on the TV with Amazon Polly
+  wentWell: z.array(z.string().max(160)).max(3).default([]).describe("1-2 short sentences: what went well, citing measured numbers"),
+  toFix: z.array(z.string().max(160)).max(3).default([]).describe("1-2 short sentences: the most important thing to fix, citing measured numbers"),
+  nextTime: z.string().max(200).default("").describe("one sentence: what the next session asks for"),
   next: SessionPlan.describe("the next session: same three exercises in the same order, adjusted targets"),
   focusCue: z.string().max(120).describe("one short cue the TV shows during the next session"),
   reason: z.string().max(300).describe("one sentence naming the metric that drove the decision"),

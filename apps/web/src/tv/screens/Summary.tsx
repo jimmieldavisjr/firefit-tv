@@ -1,11 +1,15 @@
 // COMPLETE: an in-depth session breakdown on the left, and the AI coach on the right as a live chat transcript:
 // status lines, tool calls and the agent's streamed analysis, ending in the plan for the next session.
-// Remote Up/Down scrolls the coach panel.
-import { useEffect, useRef } from "react";
-import { Bot, CircleCheck, Clock, Flame, Layers, Sparkles, Timer, Wrench } from "lucide-react";
+// The finished report is read aloud with Amazon Polly. Remote: Up/Down scroll the coach panel, Play/Pause pauses the
+// voice, Select toggles mute (remembered on this TV), Back returns to the library (handled by the app).
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Bot, CircleCheck, Clock, Flame, Layers, Pause, Play, Sparkles, Timer, Volume2, VolumeX, Wrench } from "lucide-react";
 import { EXERCISE_INFO } from "@firefit/shared/programs";
 import type { BlockResult, CoachRun, Decision, WorkoutInput } from "@firefit/shared";
+import { apiUrl, getProfileId } from "../../shared/rtc";
+import { setMusic, sfx } from "../beep";
 import { ExerciseIcon } from "../ui";
+import { useRemote } from "../useRemote";
 
 export type CoachState = { status: "saving" | "waiting" | "running" | "done" | "unavailable" | "error"; run?: CoachRun; error?: string };
 
@@ -27,8 +31,98 @@ function intervals(b: BlockResult) {
   return out;
 }
 
-export function Summary({ w, coach, scroll, heading, hint }: { w: WorkoutInput; coach: CoachState; scroll: number; heading?: string; hint?: string }) {
+const MUTE_KEY = "firefit.voiceMuted";
+const readMuted = () => {
+  try {
+    return localStorage.getItem(MUTE_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+/** Amazon Polly read-aloud of a finished report: autoplay unless muted, music ducked while it speaks. */
+function useReportVoice(workoutId: string | undefined, ready: boolean) {
+  const [muted, setMuted] = useState(readMuted);
+  const [state, setState] = useState<"idle" | "loading" | "playing" | "paused" | "blocked" | "done" | "error">("idle");
+  const audio = useRef<HTMLAudioElement | null>(null);
+
+  const stop = useCallback(() => {
+    audio.current?.pause();
+    audio.current = null;
+    setMusic("home");
+  }, []);
+
+  const play = useCallback(() => {
+    if (!workoutId) return;
+    stop();
+    const pid = getProfileId();
+    const a = new Audio(apiUrl(`/workouts/${workoutId}/voice${pid ? `?p=${pid}` : ""}`));
+    audio.current = a;
+    setState("loading");
+    a.onplaying = () => setState("playing");
+    a.onpause = () => {
+      if (audio.current === a && !a.ended) setState("paused");
+    };
+    a.onended = () => {
+      setState("done");
+      setMusic("home");
+    };
+    a.onerror = () => {
+      setState("error");
+      setMusic("home");
+    };
+    setMusic("paused"); // duck the music under the voice
+    a.play().catch(() => setState("blocked")); // a desktop browser may block autoplay: offer "Play report"
+  }, [workoutId, stop]);
+
+  useEffect(() => {
+    if (ready && !muted) play();
+    return stop;
+  }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleMute = useCallback(() => {
+    const next = !muted;
+    setMuted(next);
+    try {
+      localStorage.setItem(MUTE_KEY, next ? "1" : "0");
+    } catch {
+      /* not remembered */
+    }
+    if (next) {
+      stop();
+      setState("idle");
+    } else play();
+  }, [muted, play, stop]);
+
+  const togglePause = useCallback(() => {
+    const a = audio.current;
+    if (!a) {
+      if (state === "blocked" || state === "done" || state === "idle") play();
+      return;
+    }
+    if (a.paused) {
+      setMusic("paused");
+      a.play().catch(() => setState("blocked"));
+    } else {
+      a.pause();
+      setMusic("home");
+    }
+  }, [play, state]);
+
+  return { muted, state, toggleMute, togglePause, play };
+}
+
+export function Summary(props: { w: WorkoutInput; coach: CoachState; scroll: number; heading?: string; hint?: string; workoutId?: string }) {
+  const { w, coach, scroll, heading, hint } = props;
   const run = coach.run;
+  const voice = useReportVoice(props.workoutId, run?.status === "done");
+  useRemote((k) => {
+    if (k === "select") {
+      sfx.select();
+      if (voice.state === "blocked" && !voice.muted) voice.play();
+      else voice.toggleMute();
+    } else if (k === "playpause") voice.togglePause();
+  });
   const chatRef = useRef<HTMLDivElement>(null);
   const sets = w.blocks.reduce((a, b) => a + b.setsDone, 0);
   const planned = w.blocks.reduce((a, b) => a + b.sets, 0);
@@ -59,7 +153,7 @@ export function Summary({ w, coach, scroll, heading, hint }: { w: WorkoutInput; 
             <ExerciseRow key={b.exercise} b={b} />
           ))}
         </div>
-        <p className="hint">{hint ?? "Select: back to the library, where your next workout is waiting · Up/Down scrolls the coach"}</p>
+        <p className="hint">{hint ?? "Back: library · Select: mute or unmute the voice · Play/Pause: pause the voice · Up/Down: scroll"}</p>
       </section>
 
       <section className="coach-chat glass">
@@ -71,11 +165,24 @@ export function Summary({ w, coach, scroll, heading, hint }: { w: WorkoutInput; 
             <h3>Your AI coach</h3>
             <div className="muted small">Reviews every rep your phone measured. It never sees your video.</div>
           </div>
-          {run?.source && <span className={"pill " + (run.source === "agent" ? "ai" : "cloud")}>{run.source === "agent" ? "Strands agent · Amazon Bedrock" : "Rules fallback"}</span>}
+          {run?.source && <span className={"pill " + (run.source === "agent" ? "ai" : "cloud")}>{run.source === "agent" ? "AI coach" : "Rules"}</span>}
         </header>
+        {run?.status === "done" && (
+          <div className={"voice-bar" + (voice.state === "playing" ? " on" : "")}>
+            {voice.muted ? <VolumeX size={26} /> : voice.state === "playing" ? <Volume2 size={26} /> : voice.state === "paused" ? <Pause size={26} /> : <Play size={26} />}
+            <span>{voiceLabel(voice.muted, voice.state)}</span>
+            {voice.state === "playing" && (
+              <span className="eq">
+                <i />
+                <i />
+                <i />
+              </span>
+            )}
+          </div>
+        )}
         <div className="chat-body" ref={chatRef}>
           {coach.status === "saving" && <Line kind="status" text="Saving your workout…" live />}
-          {coach.status === "waiting" && <Line kind="status" text="Saved. Waking up your coach…" live />}
+          {(coach.status === "waiting" || (coach.status === "running" && !run?.transcript?.length)) && <Line kind="status" text="Coach is reviewing your workout…" live />}
           {coach.status === "error" && <Line kind="status" text={`Couldn't save this workout: ${coach.error}`} />}
           {coach.status === "unavailable" && <Line kind="status" text="The coach didn't answer in time. Your plan will appear in the library." />}
           {run?.transcript?.map((l, i) => (
@@ -99,13 +206,11 @@ export function Summary({ w, coach, scroll, heading, hint }: { w: WorkoutInput; 
                   </div>
                 ))}
               </div>
-              {!!run.insights?.length && (
-                <ul className="insights">
-                  {run.insights.map((s) => (
-                    <li key={s}>{s}</li>
-                  ))}
-                </ul>
-              )}
+              <div className="aar">
+                <Section title="What went well" items={run.wentWell ?? []} tone="good" />
+                <Section title="What to fix" items={run.toFix?.length ? run.toFix : (run.insights ?? []).slice(0, 2)} tone="fix" />
+                {run.nextTime && <Section title="Next time" items={[run.nextTime]} tone="next" />}
+              </div>
               <p className="focus">
                 <Sparkles size={26} /> Focus cue: {run.focusCue}
               </p>
@@ -119,6 +224,28 @@ export function Summary({ w, coach, scroll, heading, hint }: { w: WorkoutInput; 
         </div>
       </section>
     </main>
+  );
+}
+
+function voiceLabel(muted: boolean, state: string) {
+  if (muted) return "Voice muted · Select to unmute";
+  if (state === "playing") return "Reading your report (Amazon Polly) · Select to mute";
+  if (state === "loading") return "Preparing the voice…";
+  if (state === "paused") return "Paused · Play/Pause to resume";
+  if (state === "blocked") return "Select to play the report aloud";
+  if (state === "error") return "Voice unavailable right now";
+  return "Play/Pause to hear the report again";
+}
+
+function Section({ title, items, tone }: { title: string; items: string[]; tone: "good" | "fix" | "next" }) {
+  if (!items.length) return null;
+  return (
+    <div className={"aar-sec " + tone}>
+      <div className="aar-title">{title}</div>
+      {items.map((t) => (
+        <p key={t}>{t}</p>
+      ))}
+    </div>
   );
 }
 
@@ -161,6 +288,7 @@ function ExerciseRow({ b }: { b: BlockResult }) {
             <Mini v={iv.length ? `${avg(iv).toFixed(1)}s` : "–"} l="Between reps" />
             <Mini v={b.perRep.length ? `${avg(b.perRep.map((r) => r.tempo)).toFixed(1)}s` : "–"} l="Avg tempo" />
             <Mini v={b.perRep.length ? `${Math.round(avg(b.perRep.map((r) => r.depth)))}°` : "–"} l="Avg depth" />
+            <Mini v={b.perRep.length ? `${Math.min(...b.perRep.map((r) => r.depth))}°` : "–"} l="Best rep" />
           </>
         )}
       </div>

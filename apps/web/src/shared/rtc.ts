@@ -10,6 +10,9 @@ const MAX_BITRATE = 1_500_000;
 /** The household profile the TV is acting for (sent as x-profile-id; rooms ignore it). */
 let profileId: string | null = null;
 export const setProfileId = (id: string | null) => (profileId = id);
+export const getProfileId = () => profileId;
+/** Absolute URL for a GET the browser makes itself (e.g. an <audio src>), which cannot carry custom headers. */
+export const apiUrl = (path: string) => API + path;
 
 export async function api<T = unknown>(path: string, method = "GET", body?: unknown, token?: string): Promise<T | null> {
   const r = await fetch(API + path, {

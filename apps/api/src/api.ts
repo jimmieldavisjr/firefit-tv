@@ -8,6 +8,7 @@ import { z } from "zod";
 import { NewProfile, ProfileId, SessionPlan, WorkoutInput, type LifetimeStats, type ProfileSummary, type ProfileView, type SessionReport } from "@firefit/shared";
 import { db, PROFILES, T, userKey } from "./db";
 import { deriveStats, EMPTY_STATS, nextStats } from "./stats";
+import { composeScript, speak } from "./voice";
 import { normalize, type Session } from "./trends";
 
 const lambda = new LambdaClient({});
@@ -40,7 +41,8 @@ export const handler = async (e: APIGatewayProxyEventV2): Promise<APIGatewayProx
   const p = e.pathParameters ?? {};
   try {
     // Which household profile this request is for (no passwords; defaults to the original guest profile)
-    const profileId = ProfileId.parse(e.headers["x-profile-id"] ?? "guest");
+    // <audio src> requests can't send headers, so the voice route also accepts ?p=<profileId>
+    const profileId = ProfileId.parse(e.headers["x-profile-id"] ?? e.queryStringParameters?.p ?? "guest");
     const U = userKey(profileId);
     switch (e.routeKey) {
       case "GET /profiles": {
@@ -58,6 +60,20 @@ export const handler = async (e: APIGatewayProxyEventV2): Promise<APIGatewayProx
         await db.send(new PutCommand({ TableName: T, Item: { pk: PROFILES, sk: `P#${profile.id}`, ...profile } }));
         await db.send(new PutCommand({ TableName: T, Item: { pk: userKey(profile.id), sk: "PROFILE", ...input } }));
         return res(201, profile);
+      }
+
+      case "GET /workouts/{id}/voice": {
+        // Amazon Polly reads the after-action report aloud; 202 until the coach run exists
+        if (!WorkoutId.safeParse(p.id).success) return res(404, { error: "not found" });
+        const { Item } = await db.send(new GetCommand({ TableName: T, Key: { pk: U, sk: `REC#${p.id}` } }));
+        if (!Item || Item.status === "running") return res(202);
+        const audio = await speak(composeScript(Item));
+        return {
+          statusCode: 200,
+          headers: { "content-type": "audio/mpeg", "cache-control": "private, max-age=3600" },
+          body: audio.toString("base64"),
+          isBase64Encoded: true,
+        };
       }
 
       case "GET /workouts/{id}": {

@@ -179,3 +179,19 @@ describe("profiles", () => {
     expect(body.coach).toMatchObject({ status: "done", decision: "hold" });
   });
 });
+
+describe("voice script", () => {
+  it("reads the report in order and stays under the Polly budget", async () => {
+    const { composeScript, MAX_CHARS } = await import("../src/voice");
+    const s = composeScript({ recap: "3 exercises in 11 min", wentWell: ["Squats were deep"], toFix: ["Keep your hips in line"], nextTime: "Next time: squats 3 by 12.", focusCue: "Knees out" });
+    expect(s).toBe("Workout complete. 3 exercises in 11 min. What went well: Squats were deep. What to fix: Keep your hips in line. Next time: squats 3 by 12. Your focus cue: Knees out.");
+    expect(composeScript({ recap: "x".repeat(990), wentWell: ["y".repeat(100)] }).length).toBeLessThanOrEqual(MAX_CHARS);
+  });
+
+  it("returns 202 for the voice until the coach run is finished", async () => {
+    send.mockResolvedValueOnce({ Item: { status: "running" } });
+    const r = await handler(ev("GET /workouts/{id}/voice", { pathParameters: { id: "6f1c1a2e-1d2b-4c3d-9e8f-0a1b2c3d4e5f" }, queryStringParameters: { p: "ab12cd34" } }));
+    expect(r.statusCode).toBe(202);
+    expect(send.mock.calls[0][0].input.Key.pk).toBe("USER#ab12cd34");
+  });
+});

@@ -66,6 +66,7 @@ sequenceDiagram
 | `GET /profile` | Active profile, next session plan, metrics, recent sessions | CORS + throttle + `x-profile-id` |
 | `GET/POST /profiles` | List household profiles / create one (name, level, goal, weight) | CORS + throttle + Zod |
 | `GET /workouts/{id}` | After-action report: the saved session plus its coach run | CORS + throttle + `x-profile-id` |
+| `GET /workouts/{id}/voice?p=` | Amazon Polly MP3 of the report (what went well / what to fix / next time); 202 until the coach finishes | throttle; profile in the query because `<audio src>` can't send headers |
 
 ### DynamoDB single-table layout
 

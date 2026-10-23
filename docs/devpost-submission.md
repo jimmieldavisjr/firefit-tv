@@ -42,6 +42,7 @@ FireFIT is a new project. All code was written during the submission window.
 - **Strands Agents SDK (TypeScript):** CoachFn's agent has three tools: get_profile, get_workout_history and analyze_trends. Statistics are computed in code, not by the model. The agent decides progress / hold / deload / technique, writes a recap, and sets the next workout. Output is a Zod-validated structured plan, and code clamps sets, reps and rest before saving.
 - **Amazon Bedrock:** Amazon Nova 2 Lite (cross-region inference profile) is the model the agent reasons with. Only structured workout metrics are sent.
 - **Amazon DynamoDB:** one table holds the profile, every workout with per-rep depth/tempo/cues, running metrics per exercise, each AI recommendation with its tool trace and latency, and short-lived pairing rooms (TTL).
+- **Amazon Polly:** reads the after-action report aloud on the TV (generative "Matthew" voice, neural fallback). ApiFn composes the script from the saved report (what went well, what to fix, next time) and returns MP3 through API Gateway; only ApiFn may call `polly:SynthesizeSpeech`.
 - **Supporting:** S3 + CloudFront host the TV and phone apps over HTTPS. AWS CDK (TypeScript) defines everything. CloudWatch Logs records one line per agent run (tools called, decision, latency).
 
 The agent's decision changes the product: the next time the TV opens, the library's "Recommended next" card carries the agent's sets, reps and focus cue.

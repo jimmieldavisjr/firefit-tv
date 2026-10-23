@@ -67,18 +67,21 @@ export class FireFitStack extends Stack {
       ...base,
       entry: path.join(apiSrc, "api.ts"),
       memorySize: 512,
-      timeout: Duration.seconds(10),
+      timeout: Duration.seconds(20), // Polly synthesis of a ~1,000-character report
       environment: {
         TABLE: table.tableName,
         COACH_FN: coachFn.functionName,
         PROFILE_NAME: props.profileName ?? "Guest",
         PROFILE_WEIGHT_KG: String(props.profileWeightKg ?? 80),
+        VOICE_ID: "Matthew", // Amazon Polly voice for the read-aloud report
+        POLLY_ENGINE: "generative", // falls back to neural in code
       },
       logGroup: new logs.LogGroup(this, "ApiLogs", { retention: logs.RetentionDays.ONE_MONTH, removalPolicy: RemovalPolicy.DESTROY }),
     });
     table.grantReadWriteData(apiFn);
     table.grantReadWriteData(coachFn);
     coachFn.grantInvoke(apiFn);
+    apiFn.addToRolePolicy(new iam.PolicyStatement({ actions: ["polly:SynthesizeSpeech"], resources: ["*"] })); // read-aloud only
     coachFn.addToRolePolicy(
       new iam.PolicyStatement({
         actions: ["bedrock:InvokeModel", "bedrock:InvokeModelWithResponseStream"], // Converse + ConverseStream
@@ -123,6 +126,7 @@ export class FireFitStack extends Stack {
       ["GET", "/profiles"],
       ["POST", "/profiles"],
       ["GET", "/workouts/{id}"],
+      ["GET", "/workouts/{id}/voice"],
     ] as const;
     for (const [m, p] of routes) http.addRoutes({ path: p, methods: [apigwv2.HttpMethod[m]], integration });
     (http.defaultStage!.node.defaultChild as apigwv2.CfnStage).defaultRouteSettings = {

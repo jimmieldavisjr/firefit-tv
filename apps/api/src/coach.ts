@@ -35,7 +35,9 @@ const ANALYZE = (id: string) =>
   `first one sentence on the overall session (time, estimated calories), then one short paragraph per exercise ` +
   `(what went well, what to improve, citing the measured numbers such as seconds between reps, depth, tempo, ` +
   `hold time and cue counts), then your decision for next time. Plain sentences, no markdown, under 180 words.`;
-const PLAN = "Now return the structured plan for the next session. Keep it consistent with what you just told the user.";
+const PLAN =
+  "Now return the structured plan for the next session, including the after-action report fields wentWell, toFix and nextTime " +
+  "(short, plain sentences the TV will read aloud). Keep it consistent with what you just told the user.";
 
 async function history(limit = 6): Promise<Session[]> {
   const { Items = [] } = await db.send(
@@ -150,7 +152,16 @@ export const handler = async ({ workoutId, profileId = "guest" }: { workoutId: s
     say("status", "Writing your next session…");
     await flush(true);
     const result = await agent.invoke(PLAN, { structuredOutputSchema: Plan });
-    plan = guard(Plan.parse(result.structuredOutput), last, sessionTrends().blocks.map((b) => b.topCue).find(Boolean));
+    const t = sessionTrends();
+    const rules = rulesPlan(t, last);
+    const agentPlan = guard(Plan.parse(result.structuredOutput), last, t.blocks.map((b) => b.topCue).find(Boolean));
+    // every report has all three sections; fill any the model left empty from the computed rules
+    plan = {
+      ...agentPlan,
+      wentWell: agentPlan.wentWell.length ? agentPlan.wentWell : rules.wentWell,
+      toFix: agentPlan.toFix.length ? agentPlan.toFix : rules.toFix,
+      nextTime: agentPlan.nextTime || rules.nextTime,
+    };
   } catch (err) {
     console.error("agent failed, using rules fallback", err);
     error = (err as Error).name + ": " + (err as Error).message;

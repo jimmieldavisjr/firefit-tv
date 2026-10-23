@@ -118,11 +118,28 @@ export function rulesPlan(t: Trends, last: Session): Plan {
     if (b.unit === "sec") return `${name}: held ${b.total} of ${b.targetTotal} seconds${b.topCue ? `; most common cue: ${b.topCue.toLowerCase()}` : ""}.`;
     return `${name}: ${b.total} of ${b.targetTotal} reps${b.avgSecBetweenReps !== null ? `, ${b.avgSecBetweenReps}s between reps` : ""}${b.topCue ? `; watch: ${b.topCue.toLowerCase()}` : ""}.`;
   });
+  const wentWell = t.blocks
+    .filter((b) => b.targetMet || b.cueRate < 0.2)
+    .slice(0, 2)
+    .map((b) =>
+      b.unit === "sec"
+        ? `${EXERCISE_INFO[b.exercise].plural}: you held ${b.total} of ${b.targetTotal} seconds.`
+        : `${EXERCISE_INFO[b.exercise].plural}: ${b.total} of ${b.targetTotal} reps${b.avgDepthDeg !== null ? ` at an average depth of ${b.avgDepthDeg} degrees` : ""}.`,
+    );
+  const toFix = t.blocks
+    .filter((b) => !b.targetMet || b.cueRate >= 0.2)
+    .sort((x, y) => y.cueRate - x.cueRate || x.completionPct - y.completionPct)
+    .slice(0, 2)
+    .map((b) => `${EXERCISE_INFO[b.exercise].plural}: ${b.topCue ? b.topCue.toLowerCase() : `${b.completionPct}% of the target`}.`);
+  const nextTime = `Next time: ${next.map((b) => `${EXERCISE_INFO[b.exercise].plural.toLowerCase()} ${b.sets} by ${b.target}${b.exercise === "plank" ? " seconds" : ""}`).join(", ")}.`;
   return guard(
     {
       decision,
       recap: `${t.blocks.length} exercises in ${Math.round(t.totalSessionSec / 60)} min, about ${t.caloriesEst} kcal (estimate).`,
       insights,
+      wentWell: wentWell.length ? wentWell : ["You finished the session. That's the habit that matters most."],
+      toFix: toFix.length ? toFix : ["Keep the same smooth tempo on every rep."],
+      nextTime,
       next: { blocks: next },
       focusCue: topCue ?? "Move with control",
       reason: `Rule-based decision: ${decision}.`,
@@ -151,5 +168,5 @@ export function guard(p: Plan, last: Session | undefined, topCue?: string | null
     return { exercise: b.exercise, sets: clamp(proposed.sets, 1, 4), target, restSec: clamp(proposed.restSec, 20, 120) };
   });
   const focusCue = (p.decision === "technique" && topCue ? topCue : p.focusCue).trim().slice(0, 120) || topCue || "Move with control";
-  return { ...p, focusCue, insights: p.insights.slice(0, 5), next: { blocks } };
+  return { ...p, focusCue, insights: p.insights.slice(0, 5), wentWell: p.wentWell.slice(0, 3), toFix: p.toFix.slice(0, 3), next: { blocks } };
 }

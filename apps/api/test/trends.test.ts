@@ -62,7 +62,7 @@ describe("rulesPlan", () => {
 });
 
 describe("guard", () => {
-  const base = { decision: "progress" as const, recap: "", insights: [], focusCue: "", reason: "" };
+  const base = { decision: "progress" as const, recap: "", insights: [], wentWell: [], toFix: [], nextTime: "", focusCue: "", reason: "" };
 
   it("keeps the three exercises in order and clamps targets", () => {
     const p = guard({ ...base, next: { blocks: [{ exercise: "plank", sets: 9, target: 500, restSec: 1 }] } }, clean());
@@ -81,5 +81,14 @@ describe("guard", () => {
   it("technique uses the most common cue", () => {
     const p = guard({ ...base, decision: "technique", focusCue: "Breathe", next: { blocks: [] } }, session(), "Push your knees out over your toes");
     expect(p.focusCue).toBe("Push your knees out over your toes");
+  });
+});
+
+describe("after-action report fields", () => {
+  it("the rules fallback always fills went well / to fix / next time", () => {
+    const p = rulesPlan(trends([session()]), session());
+    expect(p.wentWell.length).toBeGreaterThan(0);
+    expect(p.toFix.some((t) => /hips|knees|%/i.test(t))).toBe(true);
+    expect(p.nextTime).toMatch(/^Next time: squats 3 by 10, push-ups 3 by 8, plank 3 by 30 seconds\.$/);
   });
 });

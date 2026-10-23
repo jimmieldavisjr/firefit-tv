@@ -14,3 +14,4 @@ minimumReleaseAgeExclude:
   - '@aws-sdk/client-lambda@3.1156.0'
   - '@aws-sdk/lib-dynamodb@3.1156.0'
   - aws-cdk@2.1146.1
+  - '@aws-sdk/client-polly@3.1156.0'

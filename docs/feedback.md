@@ -23,6 +23,11 @@ One entry per tool, API and SDK, filled in from real experience during the build
 - Worked well: the whole stack deployed in 216 s on the first try. HTTP API `corsPreflight` plus per-route Lambda integration needed no handler-side CORS. Payload 2.0 `routeKey` made routing a simple switch. Async `InvocationType: "Event"` keeps the TV's save call to milliseconds while the agent runs.
 - Needs work: _TBD_
 
+### Amazon Polly
+- Used for: reading the after-action report aloud on the TV after every workout (generative "Matthew", neural fallback), served as MP3 through API Gateway + Lambda.
+- Worked well: one `SynthesizeSpeech` call per report; a ~600-character report came back as a ~115 KB MP3 in about 4–5 s including the Lambda; HTTP API passes binary through with `isBase64Encoded`, so a plain `<audio src>` plays it on the Fire TV WebView with no CORS work.
+- Needs work: _TBD_
+
 ### S3 + CloudFront · AWS CDK · CloudWatch Logs
 - Used for: hosting the TV and phone pages over HTTPS, infrastructure as code, agent run traces
 - Worked well: CDK `NodejsFunction` + `aws-cdk-lib/assertions` let us unit-test the template (routes, TTL, IAM, retries) before any deploy.

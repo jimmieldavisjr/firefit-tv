@@ -56,7 +56,7 @@ export function App() {
   const [link, setLink] = useState("new");
   const [now, setNow] = useState(Date.now());
   const [showDebug, setShowDebug] = useState(false); // Up on the remote shows link/decoder stats
-  const [summary, setSummary] = useState<{ input: WorkoutInput; coach: CoachState } | null>(null);
+  const [summary, setSummary] = useState<{ input: WorkoutInput; coach: CoachState; id?: string } | null>(null);
   const [chatScroll, setChatScroll] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const session = useRef<{ pc?: RTCPeerConnection; send?: (m: TvMsg) => unknown; abort: AbortController } | null>(null);
@@ -232,7 +232,7 @@ export function App() {
       (async () => {
         try {
           const saved = await api<{ id: string }>("/workouts", "POST", input);
-          setSummary((s) => s && { ...s, coach: { status: "waiting" } });
+          setSummary((s) => s && { ...s, id: saved!.id, coach: { status: "waiting" } });
           // Poll the coach: the transcript grows while the agent works, then the plan arrives.
           for (const end = Date.now() + 90_000; Date.now() < end; await new Promise((r) => setTimeout(r, 1000))) {
             const run = await api<CoachRun>(`/workouts/${saved!.id}/coach`).catch(() => null);
@@ -300,9 +300,10 @@ export function App() {
     unlockAudio();
     const t = Date.now();
     if (screen === "boot" || screen === "library" || screen === "onboard" || screen === "profiles") return; // screens with their own focus
-    if (k === "select") sfx.select();
+    const voiceScreen = screen === "summary" || screen === "report"; // these play their own Select cue
+    if (k === "select" && !voiceScreen) sfx.select();
     else if (k === "back") sfx.back();
-    else if (k !== "playpause") sfx.nav();
+    else if (k !== "playpause" && k !== "select") sfx.nav();
     if (screen === "pair") {
       if (k === "back") toLibrary();
       if (k === "select" && pairing.status.startsWith("Pairing failed")) startPairing();
@@ -322,7 +323,7 @@ export function App() {
     } else if (screen === "summary" || screen === "report") {
       if (k === "up") setChatScroll((n) => n - 1);
       if (k === "down") setChatScroll((n) => n + 1);
-      if (k === "select" || k === "back") {
+      if (k === "back") {
         setReport(null);
         toLibrary();
       }
@@ -380,7 +381,7 @@ export function App() {
       )}
       {screen === "pair" && <Pair title="Full body: squats · push-ups · plank" {...pairing} />}
       {screen === "workout" && w && <Workout w={w} t={tel} v={vstats} link={link} now={now} who={who} weightKg={weightKg} showDebug={showDebug} />}
-      {screen === "summary" && summary && <Summary w={summary.input} coach={summary.coach} scroll={chatScroll} />}
+      {screen === "summary" && summary && <Summary w={summary.input} coach={summary.coach} scroll={chatScroll} workoutId={summary.id} />}
       {screen === "report" && report && !report.data && (
         <div className="boot">
           {report.error ? (
@@ -398,7 +399,8 @@ export function App() {
           coach={report.data.coach ? { status: "done", run: report.data.coach } : { status: "unavailable" }}
           scroll={chatScroll}
           heading={`After-action report · ${report.when}`}
-          hint="Select or Back: return to the library · Up/Down scrolls the coach"
+          workoutId={report.data.session.id}
+          hint="Back: library · Select: mute or unmute the voice · Play/Pause: replay or pause · Up/Down: scroll"
         />
       )}
     </>
