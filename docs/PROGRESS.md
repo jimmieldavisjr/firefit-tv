@@ -1,7 +1,7 @@
 # FireFIT — engineering status
 
 **Deadline:** Fri Oct 23, 2026, 12:00 PM PT. Devpost locks then.
-**Last updated:** Thu Oct 22, 21:25 PT. That leaves ~14.5 h.
+**Last updated:** Thu Oct 22, 23:30 PT. That leaves ~12.5 h.
 
 Verification levels: **Impl** = code exists · **Build** = compiles/bundles · **Test** = automated tests pass · **Device** = verified on the real Fire TV/phone · **Prod** = verified against the deployed CloudFront + AWS stack.
 
@@ -16,7 +16,7 @@ Verification levels: **Impl** = code exists · **Build** = compiles/bundles · *
 | Rep engine | Test | 10 unit tests (full and half squats, spikes, low visibility, tracking loss, cues). **Not yet tuned on a real body** |
 | Pairing/WebRTC client (`rtc.ts`) | **Device** | **Gate 2 PASS**: S23 → Fire TV over the live API (see evidence). Sender cap lowered 2.5 → 1.5 Mbps after the first run |
 | Phone page (camera, pose, canvas, stream) | Impl (skeleton) | Block 1 |
-| TV UI (library, pair, HUD, summary) | **Device** (library, pair, live, recommended card) · **Test** (state machine, 7 tests) · desktop-verified (full 2-set flow) | Ready/active/rest/paused/disconnected HUD + summary with coach plan; library "Recommended next" from the agent shown on the TV (docs/evidence/tv-library-recommended.png). **Gate 3 remote-only run on the TV still pending** |
+| TV UI (library, pair, HUD, summary) | **Device** (library, pair, live, recommended card) · **Test** (state machine, 7 tests) · desktop-verified (full 2-set flow) | Ready/active/rest/paused/disconnected HUD + summary with coach plan; library "Recommended next" from the agent shown on the TV (docs/evidence/tv-library-recommended.png). **Gate 3 PASS** (owner, remote only on the TV). UI must be restyled to match the reference ([UI_BACKLOG.md](UI_BACKLOG.md)) |
 | ApiFn (6 routes) | **Prod** | 11 handler tests; `pnpm smoke` against the live API: rooms, token 403, SDP round-trip, 400 validation, workout save |
 | CoachFn (Strands agent + rules fallback) | **Prod** (guardrails v2) | Live run: `source: "agent"`, Nova 2 Lite, all 3 tools called, decision `technique`, plan written to PROFILE in ~3 s (Gate 4 backend evidence below). TV summary/library display not built yet |
 | CDK stack | **Prod** | Deployed to 720022410355 / us-east-1 in 216 s. CloudFront serves the pages, the 9.4 MB model and the wasm (`application/wasm`); the TV loads production `tv.html` over HTTPS |
@@ -46,7 +46,7 @@ Verification levels: **Impl** = code exists · **Build** = compiles/bundles · *
 `{"evt":"coach_run","workoutId":"d8668abe-…","source":"agent","model":"us.amazon.nova-2-lite-v1:0","decision":"technique","toolCalls":["get_profile","get_workout_history","analyze_trends"],"latencyMs":3020}`
 Agent recap: "Session met target with 30 reps in 3 sets. Tempo SD was 0.1 seconds. Form cue appeared on 30% of reps." The decision matches the rules (cue rate 0.3 ≥ 0.3 → technique).
 
-## Gate 2 evidence (Oct 22, ~23:20 PT, real devices)
+## Gate 2 evidence (Oct 22, ~23:00 PT, real devices)
 
 TV screenshot over adb while paired with the S23: live phone video (portrait 540×960) on the TV, rep ring at 17, last rep "depth 70° · tempo 3.7s", knee cue shown. Debug strip: `link connected · msg #2242 state 0ms ago · angle 106° · phone 39 fps · TV video 14 fps 540×960 H264 · decoded 3336 · lost 228`.
 **Result: PASS** (live video decodes on the TV; real reps from the phone update the TV counter). Follow-ups: the TV decoded ~14 fps with ~6% loss at a 2.5 Mbps cap, so it's now 1.5 Mbps (L1); film in landscape; set targets are enforced in Block 3.
@@ -70,9 +70,10 @@ TV screenshot over adb while paired with the S23: live phone video (portrait 540
 
 - **21:00** Repo empty except `docs/reference`. Read the Ship Plan and the directive.
 - **21:20** Public repo created: https://github.com/jimmieldavisjr/firefit-tv (MIT). CI and the APK release workflow are configured.
-- **23:55** Block 3 built: workout state machine + HUD + summary + recommended card. Desktop rehearsal against the live stack passed (2 sets, pause, skip rest, coach plan in ~5 s). The agent said "progress" without raising reps and gave a squat cue for push-ups, so the guardrails now force targets to match the decision and cues to match the exercise (4 new tests; hotswapped; smoke 10/10). The shell APK now defaults to CloudFront.
+- **23:27** **Gate 3 PASS** (owner report: "Gate 3 good", the remote-only 2 × 5 workout on the Fire TV). Feedback: the UI works but must match the reference (dark glass, full-screen landscape); remove the Up/Down label; the rep-counter HUD needs more activity. Logged in UI_BACKLOG.md.
+- **~23:15** Block 3 built: workout state machine + HUD + summary + recommended card. Desktop rehearsal against the live stack passed (2 sets, pause, skip rest, coach plan in ~5 s). The agent said "progress" without raising reps and gave a squat cue for push-ups, so the guardrails now force targets to match the decision and cues to match the exercise (4 new tests; hotswapped; smoke 10/10). The shell APK now defaults to CloudFront.
 - **Data note:** the guest history contains smoke-test fixtures and one simulated push-up session. Clear them before recording the demo (needs owner OK: deletes DynamoDB items).
-- **23:20** **Gate 2 PASS** on real devices (adb screenshot evidence). Phone start-screen bug fixed (`[hidden]` overridden by `display:flex`).
+- **~23:00** **Gate 2 PASS** on real devices (adb screenshot evidence). Phone start-screen bug fixed (`[hidden]` overridden by `display:flex`).
 - **22:20** SCPs removed. Stack deployed (216 s); `pnpm smoke` 10/10 with a real Strands → Bedrock run; web app published to CloudFront; production `tv.html` loads on the TV. Repo variable `FIREFIT_URL` set for release APKs.
 - **21:50** AWS profile works, but an org SCP denies CloudFormation/Lambda/DynamoDB/API Gateway (B-02), and Bedrock is waiting on account verification (B-03). Local work continues.
 - **21:40** Gate 0 passed on the real Fire TV (L0 viable). Fixed the shell's viewport scaling (4K output) and the page focus outline.

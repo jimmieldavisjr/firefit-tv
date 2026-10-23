@@ -42,9 +42,7 @@ export function Workout(props: {
         <div className="set-label">
           Set {Math.min(w.set, plan.sets)} of {plan.sets}
         </div>
-        {live === "active" && (
-          <div className={"stage " + t.stage}>{t.stage === "lost" ? "Step into frame" : t.stage === "down" ? "Down" : "Up"}</div>
-        )}
+        {live === "active" && t.stage === "lost" && <div className="stage lost">Step into frame</div>}
         {t.lastRep && live === "active" && (
           <div className="last-rep">
             Last rep · depth {t.lastRep.depth}° · tempo {t.lastRep.tempo}s
