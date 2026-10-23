@@ -1,12 +1,12 @@
 // ApiFn behind the API Gateway HTTP API (payload format 2.0).
 // CORS is answered by the HTTP API's corsPreflight; do not add CORS headers here.
 import type { APIGatewayProxyEventV2, APIGatewayProxyStructuredResultV2 } from "aws-lambda";
-import { randomInt, randomUUID, timingSafeEqual } from "node:crypto";
+import { randomBytes, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
 import { GetCommand, PutCommand, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { z } from "zod";
-import { SessionPlan, WorkoutInput, type ProfileView } from "@firefit/shared";
-import { db, T, U } from "./db";
+import { NewProfile, ProfileId, SessionPlan, WorkoutInput, type ProfileSummary, type ProfileView, type SessionReport } from "@firefit/shared";
+import { db, PROFILES, T, userKey } from "./db";
 import { normalize, type Session } from "./trends";
 
 const lambda = new LambdaClient({});
@@ -38,7 +38,46 @@ function parseBody(e: APIGatewayProxyEventV2): unknown {
 export const handler = async (e: APIGatewayProxyEventV2): Promise<APIGatewayProxyStructuredResultV2> => {
   const p = e.pathParameters ?? {};
   try {
+    // Which household profile this request is for (no passwords; defaults to the original guest profile)
+    const profileId = ProfileId.parse(e.headers["x-profile-id"] ?? "guest");
+    const U = userKey(profileId);
     switch (e.routeKey) {
+      case "GET /profiles": {
+        const { Items = [] } = await db.send(
+          new QueryCommand({ TableName: T, KeyConditionExpression: "pk = :p", ExpressionAttributeValues: { ":p": PROFILES } }),
+        );
+        const profiles = Items.map(({ pk: _pk, sk: _sk, ...rest }) => rest as ProfileSummary);
+        return res(200, { profiles: profiles.sort((a, b) => a.createdAt.localeCompare(b.createdAt)) });
+      }
+
+      case "POST /profiles": {
+        // first-run account creation: name, level, goal and weight give the coach something to reason with
+        const input = NewProfile.parse(parseBody(e));
+        const profile: ProfileSummary = { id: randomBytes(4).toString("hex"), createdAt: new Date().toISOString(), ...input };
+        await db.send(new PutCommand({ TableName: T, Item: { pk: PROFILES, sk: `P#${profile.id}`, ...profile } }));
+        await db.send(new PutCommand({ TableName: T, Item: { pk: userKey(profile.id), sk: "PROFILE", ...input } }));
+        return res(201, profile);
+      }
+
+      case "GET /workouts/{id}": {
+        // after-action report: the saved session plus its coach run
+        if (!WorkoutId.safeParse(p.id).success) return res(404, { error: "not found" });
+        const { Items = [] } = await db.send(
+          new QueryCommand({
+            TableName: T,
+            KeyConditionExpression: "pk = :u AND begins_with(sk, :w)",
+            FilterExpression: "id = :id",
+            ExpressionAttributeValues: { ":u": U, ":w": "WORKOUT#", ":id": p.id },
+          }),
+        );
+        const session = Items[0] ? normalize(Items[0]) : null;
+        if (!session) return res(404, { error: "not found" });
+        const { Item } = await db.send(new GetCommand({ TableName: T, Key: { pk: U, sk: `REC#${p.id}` } }));
+        const { pk: _pk, sk: _sk, ...coach } = Item ?? {};
+        const report: SessionReport = { session, coach: Item ? ({ status: "done", transcript: [], ...coach } as unknown as SessionReport["coach"]) : null };
+        return res(200, report);
+      }
+
       case "POST /rooms": {
         // TV opens a pairing room; the QR carries code + token to the phone
         const code = String(randomInt(100000, 1000000));
@@ -113,7 +152,7 @@ export const handler = async (e: APIGatewayProxyEventV2): Promise<APIGatewayProx
           new InvokeCommand({
             FunctionName: process.env.COACH_FN,
             InvocationType: "Event", // async: the TV never waits on a model call
-            Payload: Buffer.from(JSON.stringify({ workoutId: id })),
+            Payload: Buffer.from(JSON.stringify({ workoutId: id, profileId })),
           }),
         );
         return res(201, { id, completedAt });

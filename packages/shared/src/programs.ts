@@ -16,3 +16,6 @@ export const EXERCISE_INFO: Record<Exercise, { name: string; plural: string; uni
   pushup: { name: "Push-Up", plural: "Push-ups", unit: "reps", camera: "Phone at floor level, side view, whole body in frame", met: 3.8 },
   plank: { name: "Plank", plural: "Plank", unit: "sec", camera: "Phone at floor level, side view, whole body in frame", met: 3.0 },
 };
+
+export const LEVELS = ["Beginner", "Intermediate", "Advanced"] as const;
+export const GOALS = ["Strength + form", "Lose weight", "Build endurance", "Stay active"] as const;

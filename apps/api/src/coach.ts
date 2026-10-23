@@ -7,10 +7,12 @@ import { Agent, BedrockModel, tool } from "@strands-agents/sdk";
 import { z } from "zod";
 import { GetCommand, PutCommand, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { Plan, type TranscriptLine } from "@firefit/shared";
-import { db, T, U } from "./db";
+import { db, T, userKey } from "./db";
 import { guard, normalize, rulesPlan, trends, type Session } from "./trends";
 
 const MODEL = process.env.MODEL_ID ?? "us.amazon.nova-2-lite-v1:0";
+/** Partition for the profile being coached; set per invocation (one invocation per Lambda instance at a time). */
+let U = userKey("guest");
 
 export const SYSTEM = `You are FireFIT's strength coach for beginners training at home in front of a TV.
 A session is squats, then push-ups, then a plank hold. The phone measured every rep (depth in degrees, tempo,
@@ -56,7 +58,8 @@ const compact = (s: Session) => ({
   blocks: s.blocks.map((b) => ({ exercise: b.exercise, sets: b.sets, target: b.target, perSet: b.perSet, cues: b.cues.length })),
 });
 
-export const handler = async ({ workoutId }: { workoutId: string }) => {
+export const handler = async ({ workoutId, profileId = "guest" }: { workoutId: string; profileId?: string }) => {
+  U = userKey(profileId);
   const t0 = Date.now();
   const toolCalls: string[] = [];
   const transcript: TranscriptLine[] = [];
@@ -175,6 +178,6 @@ export const handler = async ({ workoutId }: { workoutId: string }) => {
     }),
   );
   // CloudWatch trace: one line per run, used as Gate 4 evidence
-  console.log(JSON.stringify({ evt: "coach_run", workoutId, source, model: MODEL, decision: plan.decision, toolCalls, latencyMs, transcriptLines: transcript.length, error }));
+  console.log(JSON.stringify({ evt: "coach_run", workoutId, profileId, source, model: MODEL, decision: plan.decision, toolCalls, latencyMs, transcriptLines: transcript.length, error }));
   return { source, decision: plan.decision };
 };

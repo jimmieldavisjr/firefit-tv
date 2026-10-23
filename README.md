@@ -35,6 +35,7 @@ flowchart LR
 
 - **Privacy by design:** camera video goes from the phone to the TV over your home network. AWS never receives a camera frame, only structured workout numbers.
 - **Deterministic tracking:** a rep is an up, down, up cycle in the knee (squat) or elbow (push-up) angle, and each threshold crossing must hold for 3 consecutive frames. Push-ups only count with the torso horizontal, so arm bends while standing never count. The plank timer runs only while the shoulder-hip-ankle line is straight, with sag/pike cues. Low-visibility landmarks count as "lost" and never add anything. No language model decides whether a rep happened.
+- **Household profiles:** the first launch asks for a name, level, weight and goal (typed with the Fire TV keyboard); anyone can switch or add a profile from the library. Each profile has its own history and coach. Past sessions open an after-action report with the coach's analysis.
 - **Calories are an estimate:** MET values (Compendium of Physical Activities) × body weight (default 80 kg) × time, labeled "est." everywhere.
 - **The AI coach changes the product:** a [Strands Agents](https://strandsagents.com) coach on Lambda calls three tools: `get_profile`, `get_workout_history`, and `analyze_trends` (stats computed in code). It reasons with Amazon Bedrock and picks one of four decisions: **progress / hold / deload / technique**. Its Zod-validated plan is clamped by code guardrails (sets 1–5, reps +2 max, rest 30–120 s) and saved. The library's "Recommended next" card uses it. If the model call fails, a rules engine writes the same shape labeled `source: "rules"`, so the TV never presents a fallback as AI output.
 
@@ -99,7 +100,7 @@ Local development, LAN dev servers, and device debugging are covered in [docs/DE
 - HTTPS everywhere (CloudFront and API Gateway). API Gateway CORS allows only the CloudFront origin, plus dev origins when you deploy with `DEV_ORIGINS`. Stage throttling is 20 rps with a burst of 40.
 - Pairing rooms use a random 6-digit code plus a random per-room token. The token is required on every signaling call and compared in constant time. Rooms expire after 15 minutes (DynamoDB TTL).
 - All input is validated with Zod. IAM is scoped per function: only CoachFn can call Bedrock.
-- **Limitation:** there are no user accounts yet. Everyone shares a single guest profile, and the profile and workout routes are protected only by CORS, throttling, and validation. CORS is not authentication. Amazon Cognito is the next step.
+- **Limitation:** profiles have no passwords (like streaming-app profiles on a shared TV). Requests name a profile with an `x-profile-id` header, and the profile and workout routes are protected only by CORS, throttling, and validation. CORS is not authentication. Amazon Cognito is the next step.
 
 ## Known limitations
 
@@ -110,6 +111,8 @@ Local development, LAN dev servers, and device debugging are covered in [docs/DE
 ## Credits and licenses
 
 - FireFIT is MIT licensed: see [LICENSE](LICENSE).
+- Exercise photos, cover art and the FireFIT logo artwork were provided by the project owner; third-party logos on shoes are blurred in the app's copies.
+- [lucide](https://lucide.dev) icons are ISC licensed.
 - [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) and its Pose Landmarker models are Apache 2.0, by Google.
 - [Strands Agents SDK](https://github.com/strands-agents) is Apache 2.0.
 - Amazon Nova via Amazon Bedrock. React, Vite, Zod, AWS CDK and the AWS SDK for JavaScript are each under their own open-source licenses.

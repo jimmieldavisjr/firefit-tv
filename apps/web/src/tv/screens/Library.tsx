@@ -1,13 +1,16 @@
-// Library: one session (squats, push-ups, plank), laid out like the reference. Profile + readiness on the left,
-// the three exercise cards, the plan list with estimated time, recent sessions, and Start workout.
-// When the AI coach has planned the next session, its targets and focus cue are what Start uses.
-import { Bot, Camera, ChevronRight, Circle, Clock, Cloud, Flame, Gauge, Play, ScanEye, Smartphone, Sparkles, Sun, Target, Timer, Weight, Wifi } from "lucide-react";
+// Library: today's workout as ONE connected session (squats -> push-ups -> plank), past sessions you can open
+// for their after-action report, and the profile switcher. Remote: ▲▼ move, Select open/start, Back exit.
+import { useState } from "react";
+import { ChevronRight, Circle, Clock, Flame, Gauge, Layers, Play, ScanEye, Sun, Target, Users, Weight, Wifi } from "lucide-react";
 import { EXERCISE_INFO } from "@firefit/shared/programs";
 import type { BlockPlan, Decision, ProfileView } from "@firefit/shared";
-import { ExerciseIcon, initials } from "../ui";
+import { sfx } from "../beep";
+import { initials } from "../ui";
+import { useRemote } from "../useRemote";
 import { TRANSITION_SEC } from "../workout";
 
 const CHIP: Record<Decision, string> = { progress: "Progress", hold: "Hold", deload: "Deload", technique: "Technique" };
+const KG_TO_LB = 2.20462;
 
 /** Rough session length: ~3 s per rep, the plank's hold time, rests and phone moves between exercises. */
 export function estimateMin(blocks: BlockPlan[]) {
@@ -15,16 +18,46 @@ export function estimateMin(blocks: BlockPlan[]) {
   return Math.round((sec + (blocks.length - 1) * TRANSITION_SEC) / 60);
 }
 
-export function Library({ blocks, fromCoach, profile }: { blocks: BlockPlan[]; fromCoach: boolean; profile?: ProfileView | null }) {
+export function Library(props: {
+  blocks: BlockPlan[];
+  profile?: ProfileView | null;
+  onStart: () => void;
+  onOpen: (id: string) => void;
+  onProfiles: () => void;
+}) {
+  const { blocks, profile } = props;
   const prof = profile?.profile;
   const name = prof?.name ?? "Guest";
-  const recent = profile?.recent ?? [];
-  const weekAgo = Date.now() - 7 * 864e5;
-  const thisWeek = recent.filter((r) => Date.parse(r.completedAt) > weekAgo).length;
+  const recent = (profile?.recent ?? []).slice(0, 4);
+  const focusables = ["start", ...recent.map((r) => r.id), "profile"];
+  const [focus, setFocus] = useState(0);
+  const f = focusables[Math.min(focus, focusables.length - 1)];
+  const sets = blocks.reduce((a, b) => a + b.sets, 0);
+
+  useRemote((k) => {
+    if (k === "up" || k === "down") {
+      sfx.nav();
+      setFocus((n) => Math.max(0, Math.min(focusables.length - 1, n + (k === "down" ? 1 : -1))));
+    } else if (k === "left" && f !== "profile") {
+      sfx.nav();
+      setFocus(focusables.length - 1); // jump to the profile card on the left
+    } else if (k === "right" && f === "profile") {
+      sfx.nav();
+      setFocus(0);
+    } else if (k === "select") {
+      sfx.select();
+      if (f === "start") props.onStart();
+      else if (f === "profile") props.onProfiles();
+      else props.onOpen(f);
+    } else if (k === "back") {
+      sfx.back();
+      window.FireFitHost?.exit();
+    }
+  });
 
   return (
     <main className="library">
-      <aside className="profile glass">
+      <aside className={"profile glass" + (f === "profile" ? " focused-card" : "")}>
         <h3>Your profile</h3>
         <div className="avatar-row">
           <div className="avatar">{initials(name)}</div>
@@ -32,140 +65,96 @@ export function Library({ blocks, fromCoach, profile }: { blocks: BlockPlan[]; f
         </div>
         <Row icon={<Target size={30} />} label="Goal" value={prof?.goal ?? "Strength + form"} />
         <Row icon={<Gauge size={30} />} label="Level" value={prof?.level ?? "Beginner"} />
-        <Row icon={<Weight size={30} />} label="Weight" value={`${prof?.weightKg ?? 80} kg`} />
-        <Row icon={<Camera size={30} />} label="Camera" value="Your phone" />
-        <Row icon={<Bot size={30} />} label="Coach" value={prof?.lastDecision ? CHIP[prof.lastDecision] : "Ready"} ok />
+        <Row icon={<Weight size={30} />} label="Weight" value={`${Math.round((prof?.weightKg ?? 80) * KG_TO_LB)} lb`} />
         <div className="ready-title">Readiness check</div>
-        <div className="muted small">Confirmed live once your phone pairs</div>
         <Check icon={<ScanEye size={30} />} label="Full body visible" />
         <Check icon={<Sun size={30} />} label="Light in front of you" />
         <Check icon={<Wifi size={30} />} label="Same Wi-Fi as the TV" />
+        <div className={"switch-btn" + (f === "profile" ? " on" : "")}>
+          <Users size={28} /> Switch or add profile
+        </div>
       </aside>
 
       <section className="lib-main">
-        <div className="lib-head">
-          <h2>Today's workout</h2>
-          {fromCoach ? (
-            <span className="pill ai">
-              <Sparkles size={22} /> Planned by your AI coach
-            </span>
-          ) : (
-            <span className="pill cloud">
-              <Cloud size={22} /> Starter plan
-            </span>
-          )}
+        <h2>Today's workout</h2>
+
+        {/* One session, not a menu: the three exercises are steps of the same workout */}
+        <div className={"session glass" + (f === "start" ? " focused-card" : "")}>
+          <div className="session-head">
+            <div>
+              <h3>Full body: strength + form</h3>
+              <div className="session-meta">
+                <span>
+                  <Clock size={24} /> About {estimateMin(blocks)} min
+                </span>
+                <span>
+                  <Layers size={24} /> {blocks.length} exercises · {sets} sets
+                </span>
+                <span>
+                  <Flame size={24} /> One continuous session
+                </span>
+              </div>
+              {prof?.focusCue && prof.next && <div className="session-focus">Focus today: {prof.focusCue}</div>}
+            </div>
+            <div className={"start-btn" + (f === "start" ? " on" : "")}>
+              <Play size={34} fill="#fff" /> Start workout <ChevronRight size={34} />
+            </div>
+          </div>
+          <div className="steps-strip">
+            {blocks.map((b, i) => (
+              <div key={b.exercise} className="step-wrap">
+                <div className="step-tile">
+                  <img src={`/img/${b.exercise}-sm.jpg`} alt="" />
+                  <span className="step-n">{i + 1}</span>
+                  <div className="step-cap">
+                    <b>{EXERCISE_INFO[b.exercise].plural}</b>
+                    <span>
+                      {b.sets} × {b.target}
+                      {EXERCISE_INFO[b.exercise].unit === "sec" ? " sec" : " reps"} · rest {b.restSec}s
+                    </span>
+                  </div>
+                </div>
+                {i < blocks.length - 1 && (
+                  <div className="step-link">
+                    <ChevronRight size={40} />
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="cards">
-          {blocks.map((b, i) => (
-            <div key={b.exercise} className={`card glass ${b.exercise}` + (i === 0 ? " focused" : "")}>
-              <div className="icon">
-                <ExerciseIcon exercise={b.exercise} size={38} />
-              </div>
-              <div className="badge">
-                {i + 1} of {blocks.length}
-              </div>
-              <div className="art">
-                <ExerciseIcon exercise={b.exercise} size={150} />
-              </div>
-              <h3>{EXERCISE_INFO[b.exercise].plural}</h3>
-              <p>
-                {b.sets} × {b.target}
-                {EXERCISE_INFO[b.exercise].unit === "sec" ? " sec" : " reps"} · rest {b.restSec}s
-              </p>
+
+        <div className="history glass">
+          <div className="history-head">
+            <h3>Past sessions</h3>
+            <span className="muted small">Select a session for its after-action report</span>
+          </div>
+          {recent.length === 0 && <div className="muted">No sessions yet. Your first workout starts your history.</div>}
+          {recent.map((r) => (
+            <div key={r.id} className={"hist-row" + (f === r.id ? " on" : "")}>
+              <span className="when">{new Date(r.completedAt).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
+              <span className="what">
+                {r.blocks.map((b) => EXERCISE_INFO[b.exercise].plural).join(" · ")}
+              </span>
+              <span className="num">{Math.round(r.durationSec / 60)} min</span>
+              <span className="num">{r.caloriesEst} kcal</span>
+              {r.decision ? <span className={"chip " + r.decision}>{CHIP[r.decision]}</span> : <span />}
+              <ChevronRight size={28} className="go" />
             </div>
           ))}
         </div>
-
-        <div className="detail glass">
-          <div>
-            <div className="detail-head">
-              <div className="icon">
-                <Flame size={42} />
-              </div>
-              <div>
-                <h3>Full body: strength + form</h3>
-                <p className="desc">
-                  {fromCoach && prof?.focusCue ? `Focus today: ${prof.focusCue}.` : "Three exercises, one session. Your phone tracks every rep and hold; your coach reviews it after."}
-                </p>
-                <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-                  <span className="pill ok">
-                    <Smartphone size={22} /> On-device pose tracking
-                  </span>
-                  <span className="pill cloud">
-                    <Clock size={22} /> About {estimateMin(blocks)} min
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="plan-list">
-              {blocks.map((b, i) => (
-                <div key={b.exercise} className="plan-row">
-                  <span className="n">{i + 1}</span>
-                  <ExerciseIcon exercise={b.exercise} size={30} /> {EXERCISE_INFO[b.exercise].plural}
-                  <span className="v">
-                    {b.sets} × {b.target}
-                    {EXERCISE_INFO[b.exercise].unit === "sec" ? " s" : ""}
-                  </span>
-                </div>
-              ))}
-              <div className="plan-row">
-                <span className="n">
-                  <Timer size={20} />
-                </span>
-                Rests and phone moves
-                <span className="v">built in</span>
-              </div>
-              <div className="plan-row">
-                <span className="n">
-                  <Bot size={20} />
-                </span>
-                AI coach review
-                <span className="v">after the workout</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="side">
-            <div className="stat-tiles">
-              <Tile v={String(recent.length)} l="Sessions" />
-              <Tile v={String(thisWeek)} l="This week" />
-              <Tile v={recent[0] ? `${recent[0].caloriesEst}` : "–"} l="Last kcal (est.)" />
-            </div>
-            <div>
-              <div className="muted small" style={{ marginBottom: 6 }}>
-                Recent sessions
-              </div>
-              {recent.length === 0 && <div className="muted small">No sessions yet. Your first one starts the history.</div>}
-              {recent.slice(0, 3).map((r) => (
-                <div key={r.id} className="recent-row">
-                  <span className="when">{new Date(r.completedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</span>
-                  <span>
-                    {r.blocks.length} exercise{r.blocks.length > 1 ? "s" : ""} · {Math.round(r.durationSec / 60)} min
-                  </span>
-                  {r.decision && <span className={"chip " + r.decision}>{CHIP[r.decision]}</span>}
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="start-row">
-          <span className="hint">Select to start · Back to exit</span>
-          <div className="start-btn">
-            <Play size={34} fill="#fff" /> Start workout <ChevronRight size={34} />
-          </div>
-        </div>
+        <p className="hint">▲▼ move · ◀ profile · Select · Back to exit</p>
       </section>
     </main>
   );
 }
 
-function Row({ icon, label, value, ok }: { icon: React.ReactNode; label: string; value: string; ok?: boolean }) {
+function Row({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
     <div className="prow">
       {icon}
       {label}
-      <span className={"v" + (ok ? " ok" : "")}>{value}</span>
+      <span className="v">{value}</span>
     </div>
   );
 }
@@ -176,15 +165,6 @@ function Check({ icon, label }: { icon: React.ReactNode; label: string }) {
       <Circle className="no" size={26} />
       {icon}
       {label}
-    </div>
-  );
-}
-
-function Tile({ v, l }: { v: string; l: string }) {
-  return (
-    <div className="tile">
-      <div className="v num">{v}</div>
-      <div className="l">{l}</div>
     </div>
   );
 }

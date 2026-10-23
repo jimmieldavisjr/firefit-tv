@@ -108,7 +108,7 @@ export class FireFitStack extends Stack {
       corsPreflight: {
         allowOrigins: [`https://${cdn.distributionDomainName}`, ...props.devOrigins],
         allowMethods: [apigwv2.CorsHttpMethod.GET, apigwv2.CorsHttpMethod.POST, apigwv2.CorsHttpMethod.PUT],
-        allowHeaders: ["content-type", "x-room-token"],
+        allowHeaders: ["content-type", "x-room-token", "x-profile-id"],
         maxAge: Duration.hours(1),
       },
     });
@@ -120,6 +120,9 @@ export class FireFitStack extends Stack {
       ["POST", "/workouts"],
       ["GET", "/workouts/{id}/coach"],
       ["GET", "/profile"],
+      ["GET", "/profiles"],
+      ["POST", "/profiles"],
+      ["GET", "/workouts/{id}"],
     ] as const;
     for (const [m, p] of routes) http.addRoutes({ path: p, methods: [apigwv2.HttpMethod[m]], integration });
     (http.defaultStage!.node.defaultChild as apigwv2.CfnStage).defaultRouteSettings = {

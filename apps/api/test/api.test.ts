@@ -4,7 +4,13 @@ import fixture from "../../../fixtures/session-full.json";
 
 const send = vi.fn();
 const lambdaSend = vi.fn();
-vi.mock("../src/db", () => ({ db: { send: (...a: unknown[]) => send(...a) }, T: "table", U: "USER#guest" }));
+vi.mock("../src/db", () => ({
+  db: { send: (...a: unknown[]) => send(...a) },
+  T: "table",
+  U: "USER#guest",
+  PROFILES: "PROFILES",
+  userKey: (id: string) => `USER#${id}`,
+}));
 vi.mock("@aws-sdk/client-lambda", () => ({
   LambdaClient: class {
     send = (...a: unknown[]) => lambdaSend(...a);
@@ -138,5 +144,38 @@ describe("profile", () => {
     expect(body.recent[0].decision).toBe("hold");
     expect(body.recent[0].blocks[0].perRep).toBeUndefined();
     expect(body.recent[1].blocks[0]).toMatchObject({ exercise: "squat", perSet: [10] });
+  });
+});
+
+describe("profiles", () => {
+  it("creates a profile with an 8-char id and seeds its PROFILE item", async () => {
+    send.mockResolvedValue({});
+    const r = await handler(ev("POST /profiles", { body: JSON.stringify({ name: "Jimmie Davis", level: "Beginner", goal: "Strength + form", weightKg: 84 }) }));
+    expect(r.statusCode).toBe(201);
+    const body = JSON.parse(r.body!);
+    expect(body.id).toMatch(/^[a-z0-9]{8}$/);
+    expect(send.mock.calls[1][0].input.Item).toMatchObject({ pk: `USER#${body.id}`, sk: "PROFILE", name: "Jimmie Davis", weightKg: 84 });
+  });
+
+  it("rejects incomplete profiles and malformed profile ids", async () => {
+    const bad = await handler(ev("POST /profiles", { body: JSON.stringify({ name: "", level: "Beginner", goal: "Strength + form", weightKg: 84 }) }));
+    const badId = await handler(ev("GET /profile", { headers: { "x-profile-id": "../../etc" } }));
+    expect([bad.statusCode, badId.statusCode]).toEqual([400, 400]);
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("scopes data to the requested profile", async () => {
+    send.mockResolvedValue({ Items: [] });
+    await handler(ev("GET /profile", { headers: { "x-profile-id": "ab12cd34" } }));
+    expect(send.mock.calls[0][0].input.ExpressionAttributeValues[":u"]).toBe("USER#ab12cd34");
+  });
+
+  it("returns the after-action report: session + coach run", async () => {
+    const id = "6f1c1a2e-1d2b-4c3d-9e8f-0a1b2c3d4e5f";
+    send.mockResolvedValueOnce({ Items: [{ pk: "USER#guest", sk: `WORKOUT#x#${id}`, id, completedAt: "2026-10-23T01:00:00Z", ...fixture }] });
+    send.mockResolvedValueOnce({ Item: { pk: "USER#guest", sk: `REC#${id}`, status: "done", decision: "hold", transcript: [{ kind: "text", text: "Nice work.", at: 1 }] } });
+    const body = JSON.parse((await handler(ev("GET /workouts/{id}", { pathParameters: { id } }))).body!);
+    expect(body.session.blocks).toHaveLength(3);
+    expect(body.coach).toMatchObject({ status: "done", decision: "hold" });
   });
 });

@@ -1,12 +1,13 @@
 // Workout HUD over the phone's live video (the skeleton is baked into the frames), laid out like the reference:
 // left exercise card with the rep ring, form check, Up next / Then / rest on the right, a live depth or body-line
 // meter, and a bottom bar spread across the screen. Calories are a labeled MET estimate.
-import { Bot, CircleAlert, CircleCheck, Circle, Dumbbell, Flame, Layers, Pause, ScanEye, SkipForward, Smartphone, Square, Timer } from "lucide-react";
+import { Bot, CircleAlert, CircleCheck, Circle, Dumbbell, Flame, Layers, Pause, ScanEye, SkipForward, Square, Timer } from "lucide-react";
 import { EXERCISE_INFO } from "@firefit/shared/programs";
 import type { BlockPlan, Stage } from "@firefit/shared";
 import { CFG } from "../../phone/repEngine";
 import { ExerciseIcon, Ring, TopBar } from "../ui";
-import { caloriesEst, current, elapsedSec, isTimed, READY_HOLD_MS, setProgress, setsDone, totalSets, type SessionState } from "../workout";
+import { BreakScreen } from "./BreakScreen";
+import { caloriesEst, current, elapsedSec, isTimed, READY_HOLD_MS, setProgress, setsDone, totalSets, TRANSITION_SEC, type SessionState } from "../workout";
 
 export type Telemetry = {
   stage: Stage;
@@ -56,7 +57,7 @@ export function Workout(props: {
   const afterNext = w.plan[w.block + 2];
   const lastSetOfBlock = w.set >= b.sets;
   const restLeft = w.restEndsAt ? Math.max(0, Math.ceil((w.restEndsAt - now) / 1000)) : b.restSec;
-  const justFinishedSet = (w.phase === "rest" || w.phase === "transition") && w.restEndsAt !== null && now - (w.restEndsAt - (w.phase === "rest" ? b.restSec : 40) * 1000) < 1400;
+  const justFinishedSet = (w.phase === "rest" || w.phase === "transition") && w.restEndsAt !== null && now - (w.restEndsAt - (w.phase === "rest" ? b.restSec : TRANSITION_SEC) * 1000) < 1400;
 
   // Live meter: descent toward the "down" threshold for reps; body-line straightness for the plank.
   const meter = !t.visible ? 0 : timed ? clamp01((t.angle - 135) / (180 - 135)) : clamp01((cfg.up - t.angle) / (cfg.up - cfg.down));
@@ -64,18 +65,22 @@ export function Workout(props: {
   const meterOk = timed ? !!t.good : t.visible && t.angle <= cfg.down;
   const cue = timed ? (t.good ? undefined : t.cue) : (t.cue ?? last?.cue);
 
+  const exCard = (x: BlockPlan, t: string, s: string) => ({ img: `/img/${x.exercise}-sm.jpg`, icon: <ExerciseIcon exercise={x.exercise} size={40} />, t, s });
+  const coachCard = { icon: <Bot size={40} />, t: "AI coach review", s: "Strands agent on Amazon Bedrock" };
   const upNext = !lastSetOfBlock
-    ? { icon: <ExerciseIcon exercise={b.exercise} size={40} />, t: `${info.plural}: set ${w.set + 1}`, s: `${b.target}${timed ? " sec" : " reps"} after ${b.restSec}s rest` }
+    ? exCard(b, `${info.plural}: set ${w.set + 1}`, `${b.target}${timed ? " sec" : " reps"} after ${b.restSec}s rest`)
     : nextBlock
-      ? { icon: <ExerciseIcon exercise={nextBlock.exercise} size={40} />, t: EXERCISE_INFO[nextBlock.exercise].plural, s: targetText(nextBlock) }
-      : { icon: <Bot size={40} />, t: "AI coach review", s: "Strands agent on Amazon Bedrock" };
+      ? exCard(nextBlock, EXERCISE_INFO[nextBlock.exercise].plural, targetText(nextBlock))
+      : coachCard;
   const then = lastSetOfBlock
     ? afterNext
-      ? { icon: <ExerciseIcon exercise={afterNext.exercise} size={40} />, t: EXERCISE_INFO[afterNext.exercise].plural, s: targetText(afterNext) }
-      : { icon: <Bot size={40} />, t: nextBlock ? "AI coach review" : "Your next session", s: nextBlock ? "Strands agent on Amazon Bedrock" : "Planned by the coach" }
+      ? exCard(afterNext, EXERCISE_INFO[afterNext.exercise].plural, targetText(afterNext))
+      : nextBlock
+        ? coachCard
+        : { icon: <Bot size={40} />, t: "Your next session", s: "Planned by the coach" }
     : nextBlock
-      ? { icon: <ExerciseIcon exercise={nextBlock.exercise} size={40} />, t: EXERCISE_INFO[nextBlock.exercise].plural, s: targetText(nextBlock) }
-      : { icon: <Bot size={40} />, t: "AI coach review", s: "Strands agent on Amazon Bedrock" };
+      ? exCard(nextBlock, EXERCISE_INFO[nextBlock.exercise].plural, targetText(nextBlock))
+      : coachCard;
 
   return (
     <div className="workout">
@@ -177,7 +182,7 @@ export function Workout(props: {
         <NextCard title="Then" {...then} />
         <div className="glass strong rest-card">
           <div className="rest-ring">
-            <Ring id="restRing" size={150} stroke={10} p={w.phase === "rest" ? restLeft / Math.max(1, b.restSec) : 1} from="#3b9cff" to="#7cc0ff" />
+            <Ring id="restRing" size={116} stroke={9} p={w.phase === "rest" ? restLeft / Math.max(1, b.restSec) : 1} from="#3b9cff" to="#7cc0ff" />
             <div className="v num">{mmss(w.phase === "rest" ? restLeft : b.restSec)}</div>
           </div>
           <div>
@@ -225,7 +230,6 @@ export function Workout(props: {
         </div>
       )}
 
-      {justFinishedSet && <div className="set-done">Set complete!</div>}
 
       {/* Bottom bar, spread across the screen */}
       <footer className="w-bottom glass strong">
@@ -254,27 +258,15 @@ export function Workout(props: {
         </div>
       )}
 
-      {w.phase === "transition" && nextBlock && !justFinishedSet && (
-        <div className="overlay glass strong">
-          <div className="ov-icon">
-            <Smartphone size={56} />
-          </div>
-          <p className="muted">Next: {EXERCISE_INFO[nextBlock.exercise].plural}</p>
-          <h1>{EXERCISE_INFO[nextBlock.exercise].camera}</h1>
-          <div className="countdown small-cd num">{restLeft}</div>
-          <p className="muted">Select when you're ready</p>
-        </div>
-      )}
-
-      {w.phase === "rest" && !justFinishedSet && (
-        <div className="overlay compact glass strong">
-          <p className="muted">Rest</p>
-          <div className="countdown num">{restLeft}</div>
-          <p>
-            Next: set {w.set + 1} of {b.sets} · {b.target}
-            {timed ? " sec" : " reps"}
-          </p>
-        </div>
+      {(live === "rest" || live === "transition") && (
+        <BreakScreen
+          kind={live}
+          left={restLeft}
+          total={live === "rest" ? b.restSec : TRANSITION_SEC}
+          next={live === "rest" ? b : (nextBlock ?? b)}
+          nextSet={live === "rest" ? w.set + 1 : 1}
+          finishedSet={justFinishedSet}
+        />
       )}
 
       {w.phase === "paused" && (
@@ -301,10 +293,11 @@ export function Workout(props: {
   );
 }
 
-function NextCard({ title, icon, t, s }: { title: string; icon: React.ReactNode; t: string; s: string }) {
+function NextCard({ title, icon, t, s, img }: { title: string; icon: React.ReactNode; t: string; s: string; img?: string }) {
   return (
     <div className="glass strong">
       <h3>{title}</h3>
+      {img && <img className="next-img" src={img} alt="" />}
       <div className="next-card">
         <div className="icon">{icon}</div>
         <div>

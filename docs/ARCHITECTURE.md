@@ -63,16 +63,19 @@ sequenceDiagram
 | `GET/PUT /rooms/{code}/{offer\|answer}` | SDP exchange | per-room token (constant-time compare), 15-min TTL |
 | `POST /workouts` | Save the workout, update metrics, start the coach asynchronously | CORS + throttle + Zod |
 | `GET /workouts/{id}/coach` | 202 until the plan exists, then the `CoachPlan` | CORS + throttle |
-| `GET /profile` | Profile, `nextWorkout`, metrics, recent sessions | CORS + throttle |
+| `GET /profile` | Active profile, next session plan, metrics, recent sessions | CORS + throttle + `x-profile-id` |
+| `GET/POST /profiles` | List household profiles / create one (name, level, goal, weight) | CORS + throttle + Zod |
+| `GET /workouts/{id}` | After-action report: the saved session plus its coach run | CORS + throttle + `x-profile-id` |
 
 ### DynamoDB single-table layout
 
 | pk | sk | Item |
 | --- | --- | --- |
-| `USER#guest` | `PROFILE` | name, goal, level, nextWorkout, focusCue, lastDecision |
-| `USER#guest` | `WORKOUT#<iso>#<id>` | WorkoutInput + id + completedAt |
-| `USER#guest` | `METRIC#<exercise>` | sessions, totalReps, bestReps, lastAt |
-| `USER#guest` | `REC#<workoutId>` | CoachPlan + source + model + toolCalls + latencyMs |
+| `PROFILES` | `P#<id>` | id, name, level, goal, weightKg, createdAt (household registry) |
+| `USER#<profileId>` | `PROFILE` | name, goal, level, nextWorkout, focusCue, lastDecision |
+| `USER#<profileId>` | `WORKOUT#<iso>#<id>` | WorkoutInput + id + completedAt |
+| `USER#<profileId>` | `METRIC#<exercise>` | sessions, totalReps, bestReps, lastAt |
+| `USER#<profileId>` | `REC#<workoutId>` | CoachPlan + source + model + toolCalls + latencyMs |
 | `ROOM#<code>` | `META` | token, offer, answer, ttl |
 
 ### Coach decisions and guardrails

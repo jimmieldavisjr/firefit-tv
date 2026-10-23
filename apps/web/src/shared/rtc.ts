@@ -7,11 +7,19 @@ const ICE: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
 /** 1.5 Mbps sender cap: at 2.5 Mbps the Fire TV Stick 4K decoded only ~14 of 24 fps with ~6% packet loss (Gate 2). */
 const MAX_BITRATE = 1_500_000;
 
+/** The household profile the TV is acting for (sent as x-profile-id; rooms ignore it). */
+let profileId: string | null = null;
+export const setProfileId = (id: string | null) => (profileId = id);
+
 export async function api<T = unknown>(path: string, method = "GET", body?: unknown, token?: string): Promise<T | null> {
   const r = await fetch(API + path, {
     method,
     body: body === undefined ? undefined : JSON.stringify(body),
-    headers: { "content-type": "application/json", ...(token ? { "x-room-token": token } : {}) },
+    headers: {
+      "content-type": "application/json",
+      ...(token ? { "x-room-token": token } : {}),
+      ...(profileId ? { "x-profile-id": profileId } : {}),
+    },
   });
   if (r.status >= 400) throw new Error(`${method} ${path} -> ${r.status}`);
   return r.status === 204 || r.status === 202 ? null : ((await r.json()) as T);

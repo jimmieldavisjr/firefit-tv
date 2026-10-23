@@ -1,6 +1,7 @@
 // One contract for the phone, the TV and both Lambdas.
 // Types are inferred from the Zod schemas so runtime validation and compile-time types never drift.
 import { z } from "zod";
+import { GOALS, LEVELS } from "./programs";
 
 export const Exercise = z.enum(["squat", "pushup", "plank"]);
 export type Exercise = z.infer<typeof Exercise>;
@@ -124,7 +125,21 @@ export type ProfileView = {
   recent: { id: string; completedAt: string; durationSec: number; caloriesEst: number; blocks: Omit<BlockResult, "perRep">[]; decision?: Decision }[];
 };
 
+// Profiles: one household, several people. No passwords: a profile is a name + training data for the coach.
+export const ProfileId = z.string().regex(/^(guest|[a-z0-9]{8})$/);
+export const NewProfile = z.object({
+  name: z.string().trim().min(1).max(40),
+  level: z.enum(LEVELS),
+  goal: z.enum(GOALS),
+  weightKg: z.number().min(30).max(250),
+});
+export type NewProfile = z.infer<typeof NewProfile>;
+export type ProfileSummary = NewProfile & { id: string; createdAt: string };
+
+// GET /workouts/{id}: one past session and its coach report (the after-action report)
+export type SessionReport = { session: WorkoutInput & { id: string; completedAt: string }; coach: CoachRun | null };
+
 // POST /rooms
 export type RoomCreated = { code: string; token: string; expiresAt: number };
 
-export { DEFAULT_SESSION, EXERCISE_INFO } from "./programs";
+export { DEFAULT_SESSION, EXERCISE_INFO, GOALS, LEVELS } from "./programs";

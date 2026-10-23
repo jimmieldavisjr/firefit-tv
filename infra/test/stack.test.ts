@@ -34,10 +34,10 @@ describe("FireFitStack", () => {
     t.hasResourceProperties("AWS::DynamoDB::GlobalTable", { TimeToLiveSpecification: { AttributeName: "ttl", Enabled: true } });
   });
 
-  it("exposes exactly the six API routes", () => {
+  it("exposes exactly the nine API routes", () => {
     const routes = Object.values(t.findResources("AWS::ApiGatewayV2::Route")).map((r) => r.Properties.RouteKey);
     expect(routes.sort()).toEqual(
-      ["GET /profile", "GET /rooms/{code}/{kind}", "GET /workouts/{id}/coach", "POST /rooms", "POST /workouts", "PUT /rooms/{code}/{kind}"].sort(),
+      ["GET /profile", "GET /profiles", "POST /profiles", "GET /workouts/{id}", "GET /rooms/{code}/{kind}", "GET /workouts/{id}/coach", "POST /rooms", "POST /workouts", "PUT /rooms/{code}/{kind}"].sort(),
     );
   });
 
@@ -46,7 +46,7 @@ describe("FireFitStack", () => {
       DefaultRouteSettings: { ThrottlingRateLimit: 20, ThrottlingBurstLimit: 40 },
     });
     t.hasResourceProperties("AWS::ApiGatewayV2::Api", {
-      CorsConfiguration: Match.objectLike({ AllowHeaders: ["content-type", "x-room-token"] }),
+      CorsConfiguration: Match.objectLike({ AllowHeaders: ["content-type", "x-room-token", "x-profile-id"] }),
     });
   });
 

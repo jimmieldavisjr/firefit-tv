@@ -27,7 +27,7 @@ function intervals(b: BlockResult) {
   return out;
 }
 
-export function Summary({ w, coach, scroll }: { w: WorkoutInput; coach: CoachState; scroll: number }) {
+export function Summary({ w, coach, scroll, heading, hint }: { w: WorkoutInput; coach: CoachState; scroll: number; heading?: string; hint?: string }) {
   const run = coach.run;
   const chatRef = useRef<HTMLDivElement>(null);
   const sets = w.blocks.reduce((a, b) => a + b.setsDone, 0);
@@ -46,7 +46,7 @@ export function Summary({ w, coach, scroll }: { w: WorkoutInput; coach: CoachSta
     <main className="summary2">
       <section className="sum-left">
         <h2>
-          <CircleCheck size={52} /> Workout complete
+          <CircleCheck size={52} /> {heading ?? "Workout complete"}
         </h2>
         <div className="stats">
           <Stat icon={<Clock size={30} />} label="Total time" value={mmss(w.durationSec)} />
@@ -59,7 +59,7 @@ export function Summary({ w, coach, scroll }: { w: WorkoutInput; coach: CoachSta
             <ExerciseRow key={b.exercise} b={b} />
           ))}
         </div>
-        <p className="hint">Select: back to the library, where your next workout is waiting · Up/Down scrolls the coach</p>
+        <p className="hint">{hint ?? "Select: back to the library, where your next workout is waiting · Up/Down scrolls the coach"}</p>
       </section>
 
       <section className="coach-chat glass">

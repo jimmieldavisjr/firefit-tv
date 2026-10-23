@@ -23,8 +23,12 @@ export function useRemote(handler: (k: RemoteKey) => void) {
   ref.current = handler;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // While typing in a text field (Fire TV on-screen keyboard), only Up/Down/Enter navigate; everything else types.
+      const typing = (document.activeElement as HTMLElement | null)?.tagName === "INPUT";
+      if (typing && !["ArrowUp", "ArrowDown", "Enter"].includes(e.key)) return;
       const k = KEYS[e.key] ?? (e.keyCode === 179 ? "playpause" : undefined);
       if (!k) return;
+      if (typing) (document.activeElement as HTMLElement).blur();
       e.preventDefault();
       ref.current(k);
     };
