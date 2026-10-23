@@ -19,7 +19,9 @@ Choose exactly one decision:
 - hold: target missed, or tempo inconsistent (tempoSdSec above 0.8)
 - deload: reps down more than 20% versus the previous average
 - technique: form cue on 30% or more of reps; keep targets, set focusCue from topCue
-Keep the same exercise unless the profile goal says otherwise.`;
+Keep the same exercise as the session you are reviewing.
+For progress, raise targetReps by 1 or 2; for deload, lower it by 2; otherwise keep it.
+focusCue must be about the reviewed exercise; prefer topCue from analyze_trends when it is not null.`;
 
 async function history(exercise?: Exercise, limit = 5): Promise<Workout[]> {
   const { Items = [] } = await db.send(
@@ -93,7 +95,8 @@ export const handler = async ({ workoutId }: { workoutId: string }) => {
       `Session ${workoutId} (${last.exercise}, target ${last.sets} x ${last.targetReps}) just finished. ` +
         `Review it and plan the next session.`,
     );
-    plan = guard(Plan.parse(result.structuredOutput), last);
+    const lastTrends = trends(await history(last.exercise, 6));
+    plan = guard(Plan.parse(result.structuredOutput), last, lastTrends.topCue);
   } catch (err) {
     console.error("agent failed, using rules fallback", err);
     error = (err as Error).name + ": " + (err as Error).message;

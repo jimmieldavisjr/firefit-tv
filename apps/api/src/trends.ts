@@ -56,23 +56,47 @@ export function rulesPlan(t: Trends, last: Workout): Plan {
       decision,
       recap: `${t.reps} of ${t.target} reps at an average depth of ${t.avgDepthDeg} degrees.`,
       nextWorkout: { exercise: last.exercise, sets: last.sets, targetReps, restSec: 60 },
-      focusCue: t.topCue ?? "Keep an even tempo",
+      focusCue: t.topCue ?? CUES[last.exercise].fallback,
       reason: `Rule-based decision: ${decision}.`,
     },
     last,
+    t.topCue,
   );
 }
 
-// The model proposes; code enforces limits a beginner program should never cross.
+// Form cues the phone can raise, per exercise; anything else from the model is replaced with a safe default.
+export const CUES: Record<Workout["exercise"], { known: string[]; fallback: string }> = {
+  squat: { known: ["Push your knees out over your toes"], fallback: "Sit back and keep your chest up" },
+  pushup: { known: ["Keep your hips in line"], fallback: "Keep your body in one straight line" },
+};
+const otherCues = (ex: Workout["exercise"]) =>
+  Object.entries(CUES)
+    .filter(([k]) => k !== ex)
+    .flatMap(([, v]) => [...v.known, v.fallback]);
+
+// The model proposes; code enforces limits a beginner program should never cross, and makes the targets
+// agree with the decision (a "progress" that doesn't add reps would be decorative text, not coaching).
 const clamp = (n: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(n)));
-export function guard(p: Plan, last: Pick<Workout, "targetReps">): Plan {
+export function guard(p: Plan, last: Pick<Workout, "targetReps" | "exercise">, topCue?: string | null): Plan {
   const n = p.nextWorkout;
+  const maxReps = Math.min(20, last.targetReps + 2); // at most +2 reps per step
+  let targetReps = clamp(n.targetReps, 3, maxReps);
+  if (p.decision === "progress" && targetReps <= last.targetReps) targetReps = maxReps;
+  if (p.decision === "hold" || p.decision === "technique") targetReps = last.targetReps;
+  if (p.decision === "deload" && targetReps >= last.targetReps) targetReps = Math.max(3, last.targetReps - 2);
+
+  const cueSet = CUES[last.exercise];
+  let focusCue = p.focusCue.trim().slice(0, 120);
+  if (p.decision === "technique" && topCue) focusCue = topCue;
+  if (!focusCue || otherCues(last.exercise).some((c) => c.toLowerCase() === focusCue.toLowerCase())) focusCue = topCue ?? cueSet.fallback;
+
   return {
     ...p,
+    focusCue,
     nextWorkout: {
-      ...n,
+      exercise: last.exercise, // the app plans one exercise at a time
       sets: clamp(n.sets, 1, 5),
-      targetReps: clamp(n.targetReps, 3, Math.min(20, last.targetReps + 2)), // at most +2 reps per step
+      targetReps,
       restSec: clamp(n.restSec, 30, 120),
     },
   };

@@ -67,17 +67,39 @@ describe("rulesPlan", () => {
 });
 
 describe("guard", () => {
+  const plan = (over: Partial<Parameters<typeof guard>[0]> = {}) => ({
+    decision: "progress" as const,
+    recap: "",
+    focusCue: "Sit back",
+    reason: "",
+    nextWorkout: { exercise: "squat" as const, sets: 2, targetReps: 5, restSec: 60 },
+    ...over,
+  });
+
   it("clamps sets, reps (+2 max) and rest", () => {
-    const p = guard(
-      {
-        decision: "progress",
-        recap: "",
-        focusCue: "",
-        reason: "",
-        nextWorkout: { exercise: "squat", sets: 9, targetReps: 30, restSec: 5 },
-      },
-      { targetReps: 5 },
-    );
+    const p = guard(plan({ nextWorkout: { exercise: "squat", sets: 9, targetReps: 30, restSec: 5 } }), { targetReps: 5, exercise: "squat" });
     expect(p.nextWorkout).toEqual({ exercise: "squat", sets: 5, targetReps: 7, restSec: 30 });
+  });
+
+  it("makes targets agree with the decision", () => {
+    const last = { targetReps: 5, exercise: "squat" as const };
+    expect(guard(plan({ decision: "progress" }), last).nextWorkout.targetReps).toBe(7); // model kept 5: forced up
+    expect(guard(plan({ decision: "hold", nextWorkout: { exercise: "squat", sets: 2, targetReps: 7, restSec: 60 } }), last).nextWorkout.targetReps).toBe(5);
+    expect(guard(plan({ decision: "deload" }), last).nextWorkout.targetReps).toBe(3);
+  });
+
+  it("keeps the reviewed exercise and an exercise-appropriate cue", () => {
+    const p = guard(
+      plan({ decision: "progress", focusCue: "Push your knees out over your toes", nextWorkout: { exercise: "squat", sets: 2, targetReps: 7, restSec: 60 } }),
+      { targetReps: 5, exercise: "pushup" },
+      null,
+    );
+    expect(p.nextWorkout.exercise).toBe("pushup");
+    expect(p.focusCue).toBe("Keep your body in one straight line");
+  });
+
+  it("technique uses the most common cue from the session", () => {
+    const p = guard(plan({ decision: "technique", focusCue: "Breathe" }), { targetReps: 5, exercise: "squat" }, "Push your knees out over your toes");
+    expect(p.focusCue).toBe("Push your knees out over your toes");
   });
 });

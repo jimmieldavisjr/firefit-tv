@@ -16,9 +16,9 @@ Verification levels: **Impl** = code exists · **Build** = compiles/bundles · *
 | Rep engine | Test | 10 unit tests (full and half squats, spikes, low visibility, tracking loss, cues). **Not yet tuned on a real body** |
 | Pairing/WebRTC client (`rtc.ts`) | **Device** | **Gate 2 PASS**: S23 → Fire TV over the live API (see evidence). Sender cap lowered 2.5 → 1.5 Mbps after the first run |
 | Phone page (camera, pose, canvas, stream) | Impl (skeleton) | Block 1 |
-| TV UI (library, pair, HUD, summary) | **Device** (library, pair, live) · Impl pending (sets/rest/summary) | Remote-only Library → Pair (QR) → Live verified on the TV. Block 3: state machine, rest, summary, coach card |
+| TV UI (library, pair, HUD, summary) | **Device** (library, pair, live, recommended card) · **Test** (state machine, 7 tests) · desktop-verified (full 2-set flow) | Ready/active/rest/paused/disconnected HUD + summary with coach plan; library "Recommended next" from the agent shown on the TV (docs/evidence/tv-library-recommended.png). **Gate 3 remote-only run on the TV still pending** |
 | ApiFn (6 routes) | **Prod** | 11 handler tests; `pnpm smoke` against the live API: rooms, token 403, SDP round-trip, 400 validation, workout save |
-| CoachFn (Strands agent + rules fallback) | **Prod** | Live run: `source: "agent"`, Nova 2 Lite, all 3 tools called, decision `technique`, plan written to PROFILE in ~3 s (Gate 4 backend evidence below). TV summary/library display not built yet |
+| CoachFn (Strands agent + rules fallback) | **Prod** (guardrails v2) | Live run: `source: "agent"`, Nova 2 Lite, all 3 tools called, decision `technique`, plan written to PROFILE in ~3 s (Gate 4 backend evidence below). TV summary/library display not built yet |
 | CDK stack | **Prod** | Deployed to 720022410355 / us-east-1 in 216 s. CloudFront serves the pages, the 9.4 MB model and the wasm (`application/wasm`); the TV loads production `tv.html` over HTTPS |
 
 ## Target devices
@@ -70,6 +70,8 @@ TV screenshot over adb while paired with the S23: live phone video (portrait 540
 
 - **21:00** Repo empty except `docs/reference`. Read the Ship Plan and the directive.
 - **21:20** Public repo created: https://github.com/jimmieldavisjr/firefit-tv (MIT). CI and the APK release workflow are configured.
+- **23:55** Block 3 built: workout state machine + HUD + summary + recommended card. Desktop rehearsal against the live stack passed (2 sets, pause, skip rest, coach plan in ~5 s). The agent said "progress" without raising reps and gave a squat cue for push-ups, so the guardrails now force targets to match the decision and cues to match the exercise (4 new tests; hotswapped; smoke 10/10). The shell APK now defaults to CloudFront.
+- **Data note:** the guest history contains smoke-test fixtures and one simulated push-up session. Clear them before recording the demo (needs owner OK: deletes DynamoDB items).
 - **23:20** **Gate 2 PASS** on real devices (adb screenshot evidence). Phone start-screen bug fixed (`[hidden]` overridden by `display:flex`).
 - **22:20** SCPs removed. Stack deployed (216 s); `pnpm smoke` 10/10 with a real Strands → Bedrock run; web app published to CloudFront; production `tv.html` loads on the TV. Repo variable `FIREFIT_URL` set for release APKs.
 - **21:50** AWS profile works, but an org SCP denies CloudFormation/Lambda/DynamoDB/API Gateway (B-02), and Bedrock is waiting on account verification (B-03). Local work continues.
