@@ -3,8 +3,8 @@ plugins {
     id("com.android.application")
 }
 
-// Production page the shell opens. Override at build time: ./gradlew assembleDebug -PfirefitUrl=https://dxxxx.cloudfront.net/tv.html
-val firefitUrl: String = (project.findProperty("firefitUrl") as String?) ?: "https://REPLACE_WITH_CLOUDFRONT_DOMAIN/tv.html"
+// Production page the shell opens (the live CloudFront stack). Override at build time: ./gradlew assembleDebug -PfirefitUrl=https://dxxxx.cloudfront.net/tv.html
+val firefitUrl: String = (project.findProperty("firefitUrl") as String?) ?: "https://dctlk09e4uy0d.cloudfront.net/tv.html"
 
 android {
     namespace = "app.firefit.tv"
