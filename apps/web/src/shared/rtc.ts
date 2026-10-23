@@ -80,6 +80,7 @@ export async function tvConnect(opts: {
   onRoom: (qrUrl: string, code: string) => void;
   video: HTMLVideoElement;
   onMsg: (m: PhoneMsg) => void;
+  onOpen?: () => void;
   signal?: AbortSignal;
 }) {
   const room = (await api<RoomCreated>("/rooms", "POST"))!;
@@ -100,6 +101,8 @@ export async function tvConnect(opts: {
   pc.ondatachannel = (e) => {
     dc = e.channel;
     dc.onmessage = (m) => opts.onMsg(JSON.parse(m.data) as PhoneMsg);
+    if (dc.readyState === "open") opts.onOpen?.();
+    else dc.onopen = () => opts.onOpen?.();
   };
   await pc.setRemoteDescription({ type: "offer", sdp });
   await pc.setLocalDescription(await pc.createAnswer());
