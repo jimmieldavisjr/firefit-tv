@@ -13,9 +13,9 @@ Verification levels: **Impl** = code exists · **Build** = compiles/bundles · *
 | Shared contract (`packages/shared`) | Test | Zod schemas + message types |
 | Gate 0 probe (`probe.html`) | **Device** | **GATE 0 PASS on the Fire TV** at 640×360 @ 15 loopback (details below). The 1280×720 @ 30 loopback runs the stick out of memory (F-03) |
 | Fire TV shell (`apps/tv-shell`) | **Device** | Installed via adb; loads the dev server; D-pad focus moves; 1920-px layout scaled to the 4K output; ~70 MB PSS |
-| Rep engine | Test | 10 unit tests (full and half squats, spikes, low visibility, tracking loss, cues). **Not yet tuned on a real body** |
+| Rep engine | **Device** | 10 unit tests + **Gate 1 PASS on the S23**: 10/10 full squats, 0/5 half squats, out of frame shows "step into frame" and adds nothing. Default thresholds (down ≤ 105°, up ≥ 160°, hold 3) needed no tuning |
 | Pairing/WebRTC client (`rtc.ts`) | Build | Non-trickle ICE, bitrate cap. Not yet exercised |
-| Phone page (camera, pose, canvas, stream) | Impl (skeleton) | Block 1 |
+| Phone page (camera, pose, canvas, stream) | **Device** (sensing) · Impl (streaming) | Camera + MediaPipe + skeleton canvas verified on the S23 via CloudFront. Paired streaming to the TV is built but untested (Gate 2) |
 | TV UI (library, pair, HUD, summary) | Impl (skeleton) | Block 3; only the library cards and D-pad focus so far |
 | ApiFn (6 routes) | **Prod** | 11 handler tests; `pnpm smoke` against the live API: rooms, token 403, SDP round-trip, 400 validation, workout save |
 | CoachFn (Strands agent + rules fallback) | **Prod** | Live run: `source: "agent"`, Nova 2 Lite, all 3 tools called, decision `technique`, plan written to PROFILE in ~3 s (Gate 4 backend evidence below). TV summary/library display not built yet |
@@ -64,6 +64,7 @@ Agent recap: "Session met target with 30 reps in 3 sets. Tempo SD was 0.1 second
 
 - **21:00** Repo empty except `docs/reference`. Read the Ship Plan and the directive.
 - **21:20** Public repo created: https://github.com/jimmieldavisjr/firefit-tv (MIT). CI and the APK release workflow are configured.
+- **22:45** **Gate 1 PASS** on the Samsung S23 (Chrome, CloudFront HTTPS): 10/10 full squats, 0/5 half squats, tracking loss adds nothing.
 - **22:20** SCPs removed. Stack deployed (216 s); `pnpm smoke` 10/10 with a real Strands → Bedrock run; web app published to CloudFront; production `tv.html` loads on the TV. Repo variable `FIREFIT_URL` set for release APKs.
 - **21:50** AWS profile works, but an org SCP denies CloudFormation/Lambda/DynamoDB/API Gateway (B-02), and Bedrock is waiting on account verification (B-03). Local work continues.
 - **21:40** Gate 0 passed on the real Fire TV (L0 viable). Fixed the shell's viewport scaling (4K output) and the page focus outline.
