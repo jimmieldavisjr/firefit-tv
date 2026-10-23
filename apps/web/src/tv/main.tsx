@@ -4,6 +4,7 @@ import { App } from "./App";
 import "./tv.css";
 import "./tv-v3.css";
 import "./tv-v4.css";
+import "./tv-v5.css";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

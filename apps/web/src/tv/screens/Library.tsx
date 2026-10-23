@@ -2,7 +2,7 @@
 // and past sessions you can open for their after-action report. Sized to sit fully inside 1920x1080.
 // Remote: ▲▼ move, ◀ profile, Select open/start, Back exit.
 import { useState } from "react";
-import { ChevronRight, Clock, Flame, Gauge, Layers, Play, Target, Timer, Trophy, Users, Weight, Zap } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, Flame, Gauge, Layers, Music, Play, Target, Timer, Trophy, Users, Volume2, Weight, Zap } from "lucide-react";
 import { EXERCISE_INFO } from "@firefit/shared/programs";
 import type { BlockPlan, Decision, LifetimeStats, ProfileView } from "@firefit/shared";
 import { sfx } from "../beep";
@@ -34,6 +34,8 @@ export function Library(props: {
   onStart: () => void;
   onOpen: (id: string) => void;
   onProfiles: () => void;
+  volumes: { music: number; sfx: number };
+  onVolume: (kind: "music" | "sfx", delta: number) => void;
 }) {
   const { blocks, profile } = props;
   const prof = profile?.profile;
@@ -41,26 +43,30 @@ export function Library(props: {
   const stats = profile?.stats;
   const streak = liveStreak(stats);
   const recent = (profile?.recent ?? []).slice(0, 4);
-  const focusables = ["start", ...recent.map((r) => r.id), "profile"];
+  const focusables = ["start", ...recent.map((r) => r.id), "profile", "music", "sfx"];
   const [focus, setFocus] = useState(0);
   const f = focusables[Math.min(focus, focusables.length - 1)];
+  const leftCol = f === "profile" || f === "music" || f === "sfx";
   const sets = blocks.reduce((a, b) => a + b.sets, 0);
 
   useRemote((k) => {
     if (k === "up" || k === "down") {
       sfx.nav();
       setFocus((n) => Math.max(0, Math.min(focusables.length - 1, n + (k === "down" ? 1 : -1))));
-    } else if (k === "left" && f !== "profile") {
+    } else if ((k === "left" || k === "right") && (f === "music" || f === "sfx")) {
+      props.onVolume(f, k === "right" ? 0.1 : -0.1);
       sfx.nav();
-      setFocus(focusables.length - 1);
-    } else if (k === "right" && f === "profile") {
+    } else if (k === "left" && !leftCol) {
+      sfx.nav();
+      setFocus(focusables.indexOf("profile"));
+    } else if (k === "right" && leftCol) {
       sfx.nav();
       setFocus(0);
     } else if (k === "select") {
       sfx.select();
       if (f === "start") props.onStart();
       else if (f === "profile") props.onProfiles();
-      else props.onOpen(f);
+      else if (f !== "music" && f !== "sfx") props.onOpen(f);
     } else if (k === "back") {
       sfx.back();
       window.FireFitHost?.exit();
@@ -70,7 +76,7 @@ export function Library(props: {
   return (
     <main className="home">
       <aside className="home-left">
-        <section className={"glass home-profile" + (f === "profile" ? " focused-card" : "")}>
+        <section className={"glass home-profile" + (leftCol ? " focused-card" : "")}>
           <div className="avatar-row">
             <div className="avatar">{initials(name)}</div>
             <div className="name">{name}</div>
@@ -81,6 +87,8 @@ export function Library(props: {
           <div className={"switch-btn" + (f === "profile" ? " on" : "")}>
             <Users size={26} /> Switch or add profile
           </div>
+          <Volume label="Music" icon={<Music size={24} />} v={props.volumes.music} on={f === "music"} />
+          <Volume label="Effects" icon={<Volume2 size={24} />} v={props.volumes.sfx} on={f === "sfx"} />
         </section>
 
         <section className="glass streak-card">
@@ -179,6 +187,21 @@ function Row({ icon, label, value }: { icon: React.ReactNode; label: string; val
       {icon}
       {label}
       <span className="v">{value}</span>
+    </div>
+  );
+}
+
+function Volume({ label, icon, v, on }: { label: string; icon: React.ReactNode; v: number; on: boolean }) {
+  return (
+    <div className={"vol" + (on ? " on" : "")}>
+      {icon}
+      <span className="vol-l">{label}</span>
+      <ChevronLeft size={22} className="vol-arrow" />
+      <div className="vol-track">
+        <div style={{ width: `${Math.round(v * 100)}%` }} />
+      </div>
+      <ChevronRight size={22} className="vol-arrow" />
+      <span className="vol-v num">{Math.round(v * 100)}%</span>
     </div>
   );
 }

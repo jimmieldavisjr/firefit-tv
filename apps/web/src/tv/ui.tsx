@@ -120,3 +120,67 @@ export function Ring(props: {
     </svg>
   );
 }
+
+/**
+ * The rep counter ring: a thin track split into one segment per target rep (or a smooth track for timed holds),
+ * a glowing progress arc that eases forward, and a faint inner arc that follows the live descent.
+ */
+export function RepRing(props: { size: number; p: number; segments: number; live?: number; color: [string, string]; id: string }) {
+  const { size, p, segments, live, color, id } = props;
+  const stroke = 14;
+  const r = size / 2 - stroke - 4;
+  const c = 2 * Math.PI * r;
+  const cx = size / 2;
+  const gap = segments > 1 ? Math.min(10, c / segments / 4) : 0;
+  const seg = segments > 1 ? c / segments - gap : c;
+  const ri = r - stroke - 8;
+  const ci = 2 * Math.PI * ri;
+  const clamp = (n: number) => Math.min(1, Math.max(0, n));
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+      <defs>
+        <linearGradient id={id} x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0" stopColor={color[0]} />
+          <stop offset="1" stopColor={color[1]} />
+        </linearGradient>
+        <filter id={`${id}-glow`} x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="6" result="b" />
+          <feMerge>
+            <feMergeNode in="b" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </defs>
+      <g transform={`rotate(-90 ${cx} ${cx})`}>
+        <circle cx={cx} cy={cx} r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={stroke} strokeLinecap="round" strokeDasharray={segments > 1 ? `${seg} ${gap}` : undefined} />
+        <circle
+          className="rep-arc"
+          cx={cx}
+          cy={cx}
+          r={r}
+          fill="none"
+          stroke={`url(#${id})`}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={c * (1 - clamp(p))}
+          filter={p > 0 ? `url(#${id}-glow)` : undefined}
+        />
+        {live !== undefined && (
+          <circle
+            className="live-arc"
+            cx={cx}
+            cy={cx}
+            r={ri}
+            fill="none"
+            stroke="rgba(124, 230, 190, 0.55)"
+            strokeWidth={4}
+            strokeLinecap="round"
+            strokeDasharray={ci}
+            strokeDashoffset={ci * (1 - clamp(live))}
+          />
+        )}
+      </g>
+    </svg>
+  );
+}

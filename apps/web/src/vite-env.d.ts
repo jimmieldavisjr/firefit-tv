@@ -12,5 +12,12 @@ interface ImportMeta {
 
 // Injected by the Kotlin WebView shell (apps/tv-shell).
 interface Window {
-  FireFitHost?: { exit(): void };
+  FireFitHost?: {
+    exit(): void;
+    hasNativeAudio?(): boolean;
+    music?(mode: string): void;
+    sfx?(name: string): void;
+    setVolumes?(music: number, effects: number): void;
+    volumes?(): string;
+  };
 }

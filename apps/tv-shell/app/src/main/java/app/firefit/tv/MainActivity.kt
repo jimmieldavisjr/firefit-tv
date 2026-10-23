@@ -18,11 +18,13 @@ import android.webkit.WebViewClient
  */
 class MainActivity : Activity() {
     private lateinit var web: WebView
+    private lateinit var audio: AudioEngine
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        audio = AudioEngine(this)
         WebView.setWebContentsDebuggingEnabled(true)
         web = WebView(this).apply {
             settings.javaScriptEnabled = true
@@ -52,13 +54,41 @@ class MainActivity : Activity() {
         web.evaluateJavascript("window.dispatchEvent(new Event('tv-back'))", null)
     }
 
+    // Music follows the activity: paused when FireFIT leaves the screen, resumed (with a fade) when it returns.
+    override fun onPause() {
+        audio.onPause()
+        super.onPause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        audio.onResume()
+    }
+
     override fun onDestroy() {
+        audio.release()
         web.destroy()
         super.onDestroy()
     }
 
+    /** Bridge for the web app. JS calls arrive on a binder thread; ExoPlayer work is posted to the UI thread. */
     inner class Host {
         @JavascriptInterface
         fun exit() = runOnUiThread { finish() }
+
+        @JavascriptInterface
+        fun hasNativeAudio(): Boolean = audio.ready
+
+        @JavascriptInterface
+        fun music(mode: String) = runOnUiThread { audio.setMode(mode) }
+
+        @JavascriptInterface
+        fun sfx(name: String) = audio.sfx(name)
+
+        @JavascriptInterface
+        fun setVolumes(music: Float, effects: Float) = runOnUiThread { audio.setVolumes(music, effects) }
+
+        @JavascriptInterface
+        fun volumes(): String = "{\"music\":${audio.musicVolume},\"sfx\":${audio.sfxVolume}}"
     }
 }

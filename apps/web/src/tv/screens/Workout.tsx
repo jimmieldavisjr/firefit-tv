@@ -5,7 +5,7 @@ import { Bot, CircleAlert, CircleCheck, Circle, Dumbbell, Flame, Layers, Pause, 
 import { EXERCISE_INFO } from "@firefit/shared/programs";
 import type { BlockPlan, Stage } from "@firefit/shared";
 import { CFG } from "../../phone/repEngine";
-import { ExerciseIcon, Ring, TopBar } from "../ui";
+import { ExerciseIcon, RepRing, TopBar } from "../ui";
 import { BreakScreen } from "./BreakScreen";
 import { caloriesEst, current, elapsedSec, isTimed, READY_HOLD_MS, setProgress, setsDone, totalSets, TRANSITION_SEC, type SessionState } from "../workout";
 
@@ -87,67 +87,45 @@ export function Workout(props: {
       <TopBar step="Workout" who={props.who} />
 
       {/* Left: current exercise + ring */}
-      <section className="w-left glass strong">
-        <div className="label">
+      <section className="w-left glass strong rep-card">
+        <div className="rc-kicker">
           Exercise {w.block + 1} of {w.plan.length}
         </div>
-        <div className="ex-row">
-          <ExerciseIcon exercise={b.exercise} size={64} />
-          <div>
-            <div className="name">{info.name}</div>
-            <div className="set">
-              Set {Math.min(w.set, b.sets)} of {b.sets}
-            </div>
-          </div>
+        <div className="rc-title">
+          <span className="rc-icon">
+            <ExerciseIcon exercise={b.exercise} size={30} />
+          </span>
+          {info.name}
         </div>
-        <div
-          className={"ring-wrap" + (!timed && w.setReps ? " pulse " + (last && last.depth <= cfg.down && !last.cue ? "good" : last?.cue ? "cue" : "") : "")}
-          key={timed ? "plank" : `${w.block}-${w.set}-${w.setReps}`}
-        >
-          <div className="glow" />
-          <Ring
+        <div className="rc-sub">
+          Set {Math.min(w.set, b.sets)} of {b.sets}
+        </div>
+        <div className={"rc-ring" + (!timed && last ? (last.cue ? " cue" : last.depth <= cfg.down ? " good" : "") : "")}>
+          <RepRing
             id="repRing"
-            size={270}
-            stroke={20}
+            size={264}
             p={progress / b.target}
-            ticks={timed ? 0 : b.target}
-            filledTicks={progress}
+            segments={timed ? 1 : b.target}
             live={live === "active" && !timed ? meter : undefined}
-            from={timed ? (t.good ? "#34d399" : "#fbbf24") : "#3b9cff"}
-            to={timed ? (t.good ? "#22c55e" : "#f59e0b") : "#ff9a3c"}
+            color={timed ? (t.good ? ["#34d399", "#86efac"] : ["#f59e0b", "#fcd34d"]) : ["#3b9cff", "#ff9a3c"]}
           />
-          <div className="ring-center">
-            <span className={"ring-n num" + (timed ? " timed" : "")}>{timed ? mmss(progress) : progress}</span>
-            <span className="ring-d">{timed ? `/ ${mmss(b.target)} hold` : `/ ${b.target} reps`}</span>
+          <div className="rc-center">
+            <span className="rc-n num" key={timed ? "t" : progress}>
+              {timed ? mmss(progress) : progress}
+            </span>
+            <span className="rc-of">{timed ? `of ${mmss(b.target)}` : `of ${b.target} reps`}</span>
           </div>
         </div>
-        <div className="w-metrics">
+        <div className="rc-metrics">
           {timed ? (
             <>
-              <div>
-                <div className="v num">
-                  {t.angle}°{t.good ? <CircleCheck className="ok" size={34} /> : <CircleAlert className="warn" size={34} />}
-                </div>
-                <div className="l">Body line</div>
-              </div>
-              <div>
-                <div className="v">{t.good ? "Hold" : "Fix"}</div>
-                <div className="l">Status</div>
-              </div>
+              <Stat2 v={`${t.angle}°`} l="Body line" state={t.good ? "ok" : "warn"} />
+              <Stat2 v={t.good ? "Hold" : "Fix"} l="Status" />
             </>
           ) : (
             <>
-              <div>
-                <div className="v num">
-                  {last ? `${last.depth}°` : "–"}
-                  {last && (last.depth <= cfg.down ? <CircleCheck className="ok" size={34} /> : <CircleAlert className="warn" size={34} />)}
-                </div>
-                <div className="l">Depth</div>
-              </div>
-              <div>
-                <div className="v num">{last ? `${last.tempo}s` : "–"}</div>
-                <div className="l">Tempo</div>
-              </div>
+              <Stat2 v={last ? `${last.depth}°` : "–"} l="Depth" state={last ? (last.depth <= cfg.down ? "ok" : "warn") : undefined} />
+              <Stat2 v={last ? `${last.tempo}s` : "–"} l="Tempo" />
             </>
           )}
         </div>
@@ -291,6 +269,19 @@ function NextCard({ title, icon, t, s, img }: { title: string; icon: React.React
           <div className="s">{s}</div>
         </div>
       </div>
+    </div>
+  );
+}
+
+function Stat2({ v, l, state }: { v: string; l: string; state?: "ok" | "warn" }) {
+  return (
+    <div className="rc-stat">
+      <div className="v num">
+        {v}
+        {state === "ok" && <CircleCheck className="ok" size={26} />}
+        {state === "warn" && <CircleAlert className="warn" size={26} />}
+      </div>
+      <div className="l">{l}</div>
     </div>
   );
 }

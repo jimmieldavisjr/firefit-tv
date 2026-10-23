@@ -5,7 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { BlockPlan, CoachRun, NewProfile, PhoneMsg, ProfileSummary, ProfileView, SessionReport, TvMsg, WorkoutInput } from "@firefit/shared";
 import { DEFAULT_SESSION } from "@firefit/shared/programs";
 import { api, setProfileId, tvConnect } from "../shared/rtc";
-import { sfx, unlockAudio } from "./beep";
+import { getVolumes, setMusic, setVolumes, sfx, unlockAudio } from "./beep";
 import { Library } from "./screens/Library";
 import { Onboarding } from "./screens/Onboarding";
 import { Profiles } from "./screens/Profiles";
@@ -66,6 +66,14 @@ export function App() {
   const profileRef = useRef<ProfileView | null>(null);
   profileRef.current = profile;
   const lastTick = useRef(-1);
+  const [volumes, setVol] = useState(getVolumes);
+  const changeVolume = useCallback((kind: "music" | "sfx", delta: number) => {
+    setVol((v) => {
+      const next = { ...v, [kind]: Math.round(Math.max(0, Math.min(1, v[kind] + delta)) * 10) / 10 };
+      setVolumes(next.music, next.sfx);
+      return next;
+    });
+  }, []);
 
   const blocks: BlockPlan[] = profile?.profile.next?.blocks ?? DEFAULT_SESSION.blocks;
   const who = profile?.profile.name ?? "Guest";
@@ -213,6 +221,7 @@ export function App() {
     syncPhone(w);
     if (w.phase === "active" && prevPhase !== "active") sfx.start();
     if ((w.phase === "rest" || w.phase === "transition") && prevPhase === "active") sfx.setDone();
+    if (w.phase === "ready" && prevPhase === "transition") sfx.transition();
     if (w.phase === "complete" && prevPhase !== "complete") {
       sfx.complete();
       const input = toWorkoutInput(w, weightKg);
@@ -229,7 +238,10 @@ export function App() {
             const run = await api<CoachRun>(`/workouts/${saved!.id}/coach`).catch(() => null);
             if (!run) continue;
             setSummary((s) => s && { ...s, coach: { status: run.status, run } });
-            if (run.status === "done") return;
+            if (run.status === "done") {
+              sfx.achievement();
+              return;
+            }
           }
           setSummary((s) => s && { ...s, coach: { ...s.coach, status: "unavailable" } });
         } catch (err) {
@@ -238,6 +250,10 @@ export function App() {
       })();
     }
   }, [w?.phase, w?.block, w?.set]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Music follows the screen: ambient at home, the workout playlist in a session, ducked while paused.
+  const musicMode = screen === "workout" ? (w?.phase === "paused" ? "paused" : "workout") : screen === "boot" ? "off" : "home";
+  useEffect(() => setMusic(musicMode), [musicMode]);
 
   // Clock + rest/transition countdowns
   useEffect(() => {
@@ -250,7 +266,7 @@ export function App() {
       const s = wRef.current;
       if (s && (s.phase === "rest" || s.phase === "transition") && s.restEndsAt) {
         const left = Math.ceil((s.restEndsAt - t) / 1000);
-        if (left <= 3 && left >= 1 && left !== lastTick.current) sfx.tick();
+        if (left === 3 && lastTick.current !== 3) sfx.countdown(); // one 3-second countdown into the next set
         lastTick.current = left;
       }
     }, 250);
@@ -354,6 +370,8 @@ export function App() {
           profile={profile}
           onStart={startSession}
           onOpen={openReport}
+          volumes={volumes}
+          onVolume={changeVolume}
           onProfiles={() => {
             api<{ profiles: ProfileSummary[] }>("/profiles").then((r) => r && setProfiles(r.profiles));
             setScreen("profiles");

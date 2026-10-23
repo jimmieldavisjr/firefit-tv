@@ -28,3 +28,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 }
+
+dependencies {
+    // Background music (looping, playlist, fades, audio focus); sound effects use the platform SoundPool
+    implementation("androidx.media3:media3-exoplayer:1.11.1")
+}
