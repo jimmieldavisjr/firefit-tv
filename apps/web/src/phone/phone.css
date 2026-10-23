@@ -1,0 +1,5 @@
+html, body { margin: 0; height: 100%; background: #0b0f17; color: #e8edf5; font: 16px system-ui, sans-serif; overflow: hidden; }
+#out { width: 100vw; height: 100vh; object-fit: contain; display: block; }
+#hud { position: fixed; left: 0; right: 0; bottom: 0; display: flex; justify-content: space-between; gap: 12px;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); background: rgba(0, 0, 0, 0.55); font-size: 14px; }
+#debug { font-family: ui-monospace, monospace; opacity: 0.85; }

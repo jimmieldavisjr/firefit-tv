@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-api-infra:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm test
+      - run: pnpm build
+      - name: CDK synth (bundles both Lambdas with esbuild)
+        run: pnpm synth
+        env:
+          CDK_DEFAULT_ACCOUNT: "123456789012"
+          CDK_DEFAULT_REGION: us-east-1
+
+  tv-shell:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/tv-shell
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Build debug APK
+        run: ./gradlew assembleDebug -PfirefitUrl="${{ vars.FIREFIT_URL || 'https://REPLACE_WITH_CLOUDFRONT_DOMAIN/tv.html' }}"
+      - uses: actions/upload-artifact@v5
+        with:
+          name: firefit-tv-debug-apk
+          path: apps/tv-shell/app/build/outputs/apk/debug/app-debug.apk

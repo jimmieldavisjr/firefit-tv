@@ -1,0 +1,31 @@
+name: Release APK
+
+# Push a tag like v1.0.0 to build the Fire TV shell and attach firefit-tv.apk to a GitHub release.
+# Set the repository variable FIREFIT_URL to the production CloudFront tv.html URL first.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v5
+      - name: Build APK pointing at production
+        working-directory: apps/tv-shell
+        run: |
+          test -n "${{ vars.FIREFIT_URL }}" || { echo "Set the FIREFIT_URL repository variable"; exit 1; }
+          ./gradlew assembleDebug -PfirefitUrl="${{ vars.FIREFIT_URL }}"
+          cp app/build/outputs/apk/debug/app-debug.apk "$GITHUB_WORKSPACE/firefit-tv.apk"
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" firefit-tv.apk --title "FireFIT ${{ github.ref_name }}" --generate-notes

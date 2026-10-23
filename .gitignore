@@ -1,0 +1,46 @@
+# deps / builds
+node_modules/
+dist/
+*.tsbuildinfo
+coverage/
+
+# CDK
+infra/cdk.out/
+cdk-outputs.json
+cdk.context.json
+
+# env + secrets (never commit)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.keystore
+*.jks
+
+# large downloaded assets (fetched by scripts/fetch-assets.mjs)
+apps/web/public/models/
+apps/web/public/mediapipe/
+
+# private planning material (kept local, not published)
+docs/reference/
+
+# Android
+apps/tv-shell/.gradle/
+apps/tv-shell/build/
+apps/tv-shell/app/build/
+apps/tv-shell/local.properties
+apps/tv-shell/.idea/
+apps/tv-shell/.kotlin/
+*.apk
+*.aab
+
+# recordings / demo media
+*.mp4
+*.mov
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+*.log

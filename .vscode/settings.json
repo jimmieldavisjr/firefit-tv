@@ -1,0 +1,12 @@
+{
+  "typescript.tsdk": "node_modules/typescript/lib",
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": false,
+  "eslint.useFlatConfig": true,
+  "files.exclude": {
+    "**/node_modules": true,
+    "infra/cdk.out": true,
+    "apps/tv-shell/.gradle": true,
+    "apps/tv-shell/**/build": true
+  }
+}

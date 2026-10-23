@@ -1,0 +1,34 @@
+{
+  "name": "firefit",
+  "private": true,
+  "description": "FireFIT: a form coach for Fire TV, powered by the phone you already have",
+  "license": "MIT",
+  "type": "module",
+  "packageManager": "pnpm@11.15.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "assets": "node scripts/fetch-assets.mjs",
+    "dev": "pnpm --filter @firefit/web dev",
+    "build": "pnpm --filter @firefit/web build",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "synth": "pnpm --filter @firefit/infra synth",
+    "deploy:infra": "pnpm --filter @firefit/infra deploy",
+    "deploy:web": "node scripts/deploy-web.mjs",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.0.0",
+    "eslint": "^10.13.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^16.0.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.0",
+    "vitest": "^5.0.5"
+  }
+}

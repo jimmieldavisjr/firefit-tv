@@ -1,0 +1,16 @@
+packages:
+  - apps/web
+  - apps/api
+  - packages/*
+  - infra
+
+# esbuild ships its native binary via postinstall (used by CDK Lambda bundling and Vite)
+allowBuilds:
+  esbuild: true
+
+# pnpm holds back very new releases by default; these were vetted when the repo was set up
+minimumReleaseAgeExclude:
+  - '@aws-sdk/client-dynamodb@3.1156.0'
+  - '@aws-sdk/client-lambda@3.1156.0'
+  - '@aws-sdk/lib-dynamodb@3.1156.0'
+  - aws-cdk@2.1146.1
