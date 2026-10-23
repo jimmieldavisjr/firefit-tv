@@ -62,7 +62,7 @@ adb pull /sdcard/firefit.mp4
 API=$(node -p "require('./cdk-outputs.json').FireFit.ApiUrl")
 curl -s -X POST $API/rooms
 curl -s $API/profile
-curl -s -X POST $API/workouts -H 'content-type: application/json' -d @fixtures/squat-3x10.json
+curl -s -X POST $API/workouts -H 'content-type: application/json' -d @fixtures/session-full.json
 curl -s $API/workouts/<id>/coach      # 202 until the agent finishes, then the plan
 aws logs tail /aws/lambda/<CoachFnName> --follow --format short   # one coach_run line per run
 ```

@@ -5,8 +5,9 @@ import { randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { InvokeCommand, LambdaClient } from "@aws-sdk/client-lambda";
 import { GetCommand, PutCommand, QueryCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 import { z } from "zod";
-import { WorkoutInput, type ProfileView } from "@firefit/shared";
+import { SessionPlan, WorkoutInput, type ProfileView } from "@firefit/shared";
 import { db, T, U } from "./db";
+import { normalize, type Session } from "./trends";
 
 const lambda = new LambdaClient({});
 const ROOM_TTL_SEC = 900;
@@ -78,32 +79,36 @@ export const handler = async (e: APIGatewayProxyEventV2): Promise<APIGatewayProx
       }
 
       case "POST /workouts": {
-        // save, update running metrics, wake the coach asynchronously
+        // save the session, update running metrics per exercise, wake the coach asynchronously
         const w = WorkoutInput.parse(parseBody(e));
         const id = randomUUID();
         const completedAt = new Date().toISOString();
         await db.send(
           new PutCommand({ TableName: T, Item: { pk: U, sk: `WORKOUT#${completedAt}#${id}`, id, completedAt, ...w } }),
         );
-        await db.send(
-          new UpdateCommand({
-            TableName: T,
-            Key: { pk: U, sk: `METRIC#${w.exercise}` },
-            UpdateExpression: "ADD sessions :one, totalReps :r SET lastAt = :at",
-            ExpressionAttributeValues: { ":one": 1, ":r": w.reps, ":at": completedAt },
-          }),
-        );
-        await db
-          .send(
+        for (const b of w.blocks) {
+          const total = b.perSet.reduce((a, n) => a + n, 0);
+          const Key = { pk: U, sk: `METRIC#${b.exercise}` };
+          await db.send(
             new UpdateCommand({
               TableName: T,
-              Key: { pk: U, sk: `METRIC#${w.exercise}` },
-              UpdateExpression: "SET bestReps = :r",
-              ConditionExpression: "attribute_not_exists(bestReps) OR bestReps < :r",
-              ExpressionAttributeValues: { ":r": w.reps },
+              Key,
+              UpdateExpression: "ADD sessions :one, totalReps :r SET lastAt = :at",
+              ExpressionAttributeValues: { ":one": 1, ":r": total, ":at": completedAt },
             }),
-          )
-          .catch(() => {}); // not a new best: fine
+          );
+          await db
+            .send(
+              new UpdateCommand({
+                TableName: T,
+                Key,
+                UpdateExpression: "SET bestReps = :r",
+                ConditionExpression: "attribute_not_exists(bestReps) OR bestReps < :r",
+                ExpressionAttributeValues: { ":r": total },
+              }),
+            )
+            .catch(() => {}); // not a new best: fine
+        }
         await lambda.send(
           new InvokeCommand({
             FunctionName: process.env.COACH_FN,
@@ -115,12 +120,12 @@ export const handler = async (e: APIGatewayProxyEventV2): Promise<APIGatewayProx
       }
 
       case "GET /workouts/{id}/coach": {
-        // TV polls until the agent (or the rules fallback) writes the plan
+        // TV polls: 202 until the coach starts, then the live transcript (status "running"), then the plan ("done")
         if (!WorkoutId.safeParse(p.id).success) return res(404, { error: "not found" });
         const { Item } = await db.send(new GetCommand({ TableName: T, Key: { pk: U, sk: `REC#${p.id}` } }));
         if (!Item) return res(202);
-        const { pk: _pk, sk: _sk, ...plan } = Item;
-        return res(200, plan);
+        const { pk: _pk, sk: _sk, ...run } = Item;
+        return res(200, { status: "done", transcript: [], ...run });
       }
 
       case "GET /profile": {
@@ -131,22 +136,32 @@ export const handler = async (e: APIGatewayProxyEventV2): Promise<APIGatewayProx
         const by = (pre: string) => Items.filter((i) => String(i.sk).startsWith(pre));
         const decisions = Object.fromEntries(by("REC#").map((r) => [String(r.sk).slice(4), r.decision]));
         const strip = ({ pk: _pk, sk: _sk, ...rest }: Record<string, unknown>) => rest;
-        const stored = by("PROFILE")[0];
+        const stored = (by("PROFILE")[0] ? strip(by("PROFILE")[0]) : {}) as Record<string, unknown>;
+        const next = SessionPlan.safeParse(stored.next);
         const view: ProfileView = {
           profile: {
-            name: "Guest",
-            goal: "Strength + form",
-            level: "Beginner",
-            ...(stored ? strip(stored) : {}),
-          } as ProfileView["profile"],
+            name: (stored.name as string) ?? process.env.PROFILE_NAME ?? "Guest",
+            goal: (stored.goal as string) ?? "Strength + form",
+            level: (stored.level as string) ?? "Beginner",
+            weightKg: Number(stored.weightKg ?? process.env.PROFILE_WEIGHT_KG ?? 80),
+            ...(next.success ? { next: next.data } : {}),
+            ...(next.success && stored.focusCue ? { focusCue: stored.focusCue as string } : {}),
+            ...(stored.lastDecision ? { lastDecision: stored.lastDecision as ProfileView["profile"]["lastDecision"] } : {}),
+          },
           metrics: Object.fromEntries(by("METRIC#").map((m) => [String(m.sk).slice(7), strip(m)])),
           recent: by("WORKOUT#")
             .reverse()
             .slice(0, 5)
-            .map((w) => {
-              const { perRep: _perRep, ...rest } = strip(w);
-              return { ...rest, decision: decisions[String(w.id)] } as ProfileView["recent"][number];
-            }),
+            .map((w) => normalize(w))
+            .filter((w): w is Session => !!w)
+            .map((w) => ({
+              id: w.id,
+              completedAt: w.completedAt,
+              durationSec: w.durationSec,
+              caloriesEst: w.caloriesEst,
+              blocks: w.blocks.map(({ perRep: _perRep, ...b }) => b),
+              decision: decisions[w.id],
+            })),
         };
         return res(200, view);
       }

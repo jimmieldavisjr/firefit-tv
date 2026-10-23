@@ -5,7 +5,7 @@ import type { Exercise, PhoneMsg, TvMsg } from "@firefit/shared";
 import { phoneConnect } from "../shared/rtc";
 import { drawSkeleton } from "./draw";
 import { loadPose, openCamera, type PoseModel } from "./pose";
-import { RepEngine, type EngineState } from "./repEngine";
+import { PlankEngine, RepEngine, type EngineState } from "./repEngine";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const video = $<HTMLVideoElement>("cam");
@@ -41,12 +41,14 @@ let inferFps = 0;
 let lastInfer = 0;
 let lastCue = "";
 
-const engine = new RepEngine((params.get("ex") as Exercise) ?? "squat", (rep, reps) => {
+const onRep = (rep: import("@firefit/shared").Rep, reps: number) => {
   send({ t: "rep", seq: ++seq, reps, ...rep });
   canvas.classList.add("rep");
   setTimeout(() => canvas.classList.remove("rep"), 180);
   navigator.vibrate?.(40);
-});
+};
+const makeEngine = (ex: Exercise) => (ex === "plank" ? new PlankEngine() : new RepEngine(ex, onRep));
+let engine: RepEngine | PlankEngine = makeEngine((params.get("ex") as Exercise) ?? "squat");
 
 if (!window.isSecureContext) {
   ui.startMsg.textContent = "The camera needs HTTPS. Open this page from the TV's QR code or the CloudFront URL.";
@@ -90,7 +92,7 @@ async function start() {
   ui.start.hidden = true;
   ui.hud.hidden = false;
   ui.tools.hidden = !!room; // exercise/reset buttons only in standalone self-test
-  ui.status.textContent = room ? "Connecting to TV…" : "Self-test: do 10 squats";
+  ui.status.textContent = room ? "Connecting to TV…" : SELF_TEST[engine.exercise];
   requestAnimationFrame(tick);
   if (room && token) connect(room, token).catch((err) => (ui.status.textContent = `Pairing failed: ${err.message}`));
 }
@@ -123,17 +125,27 @@ function tick(now: number) {
     render(s);
     if (now - lastPublish >= PUBLISH_MS) {
       lastPublish = now;
-      send({ t: "state", seq: ++seq, reps: s.reps, stage: s.stage, angle: s.angle, visible: s.visible, fps: Math.round(inferFps) });
+      send({
+        t: "state",
+        seq: ++seq,
+        reps: s.reps,
+        stage: s.stage,
+        angle: s.angle,
+        visible: s.visible,
+        fps: Math.round(inferFps),
+        ...(s.holdMs !== undefined ? { holdMs: s.holdMs, good: s.good } : {}),
+        ...(s.cue ? { cue: s.cue } : {}),
+      });
     }
   }
   requestAnimationFrame(tick);
 }
 
 function render(s: EngineState) {
-  ui.reps.textContent = String(s.reps);
+  ui.reps.textContent = s.holdMs !== undefined ? `${Math.floor(s.holdMs / 1000)}s` : String(s.reps);
   ui.stage.textContent = s.stage === "lost" ? "step into frame" : s.stage;
-  ui.stage.classList.toggle("lost", s.stage === "lost");
-  const cue = engine.log.at(-1)?.cue ?? "";
+  ui.stage.classList.toggle("lost", s.stage === "lost" || s.stage === "break");
+  const cue = s.cue ?? engine.log.at(-1)?.cue ?? "";
   if (cue !== lastCue) ui.cue.textContent = lastCue = cue;
   ui.debug.textContent = `${engine.exercise} · angle ${s.angle}° · ${s.stage} · ${Math.round(inferFps)} fps · ${pose.label} · ${canvas.width}×${canvas.height}`;
 }
@@ -155,8 +167,9 @@ async function connect(code: string, t: string) {
 function onTvMsg(m: TvMsg) {
   switch (m.t) {
     case "config":
-      engine.exercise = m.exercise;
+      if (m.exercise !== engine.exercise) engine = makeEngine(m.exercise);
       engine.reset();
+      ui.status.textContent = `${m.exercise === "plank" ? "Plank" : m.exercise === "pushup" ? "Push-ups" : "Squats"}: follow the TV`;
       break;
     case "start":
       counting = true;
@@ -176,14 +189,17 @@ function onTvMsg(m: TvMsg) {
 }
 
 // Standalone self-test controls
-const exButtons = { squat: $("ex-squat"), pushup: $("ex-pushup") } as const;
-for (const ex of ["squat", "pushup"] as const) {
+const SELF_TEST: Record<Exercise, string> = {
+  squat: "Self-test: face the phone, do squats",
+  pushup: "Self-test: phone at floor level, side view, do push-ups",
+  plank: "Self-test: phone at floor level, side view, hold a plank",
+};
+const exButtons = { squat: $("ex-squat"), pushup: $("ex-pushup"), plank: $("ex-plank") } as const;
+for (const ex of ["squat", "pushup", "plank"] as const) {
   exButtons[ex].addEventListener("click", () => {
-    engine.exercise = ex;
-    engine.reset();
-    exButtons.squat.classList.toggle("on", ex === "squat");
-    exButtons.pushup.classList.toggle("on", ex === "pushup");
-    ui.status.textContent = ex === "squat" ? "Self-test: face the phone, do squats" : "Self-test: side view, phone at floor level";
+    engine = makeEngine(ex);
+    for (const k of ["squat", "pushup", "plank"] as const) exButtons[k].classList.toggle("on", k === ex);
+    ui.status.textContent = SELF_TEST[ex];
   });
 }
 $("reset").addEventListener("click", () => engine.reset());

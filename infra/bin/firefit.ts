@@ -6,5 +6,7 @@ new FireFitStack(app, "FireFit", {
   env: { account: process.env.CDK_DEFAULT_ACCOUNT, region: process.env.CDK_DEFAULT_REGION ?? "us-east-1" },
   devOrigins: process.env.DEV_ORIGINS?.split(",").filter(Boolean) ?? [],
   modelId: process.env.MODEL_ID ?? "us.amazon.nova-2-lite-v1:0",
+  profileName: process.env.PROFILE_NAME,
+  profileWeightKg: process.env.PROFILE_WEIGHT_KG ? Number(process.env.PROFILE_WEIGHT_KG) : undefined,
   description: "FireFIT: pairing, workouts and the Strands coach agent (Fire TV hackathon)",
 });

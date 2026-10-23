@@ -1,17 +1,18 @@
-// Fire TV app root: LIBRARY -> PAIR -> WORKOUT (READY / ACTIVE / REST / PAUSED) -> SUMMARY, remote only.
-// The TV drives progress (workout.ts) and tells the phone when to count; the phone stays authoritative for reps.
+// Fire TV app root: LIBRARY -> PAIR -> WORKOUT (squats -> push-ups -> plank) -> SUMMARY, remote only.
+// The TV drives progress (workout.ts) and tells the phone which exercise to track and when to count;
+// the phone stays authoritative for reps and plank hold time.
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { CoachPlan, PhoneMsg, ProfileView, TvMsg, WorkoutInput } from "@firefit/shared";
-import { PROGRAMS } from "@firefit/shared/programs";
-import { api, poll, tvConnect } from "../shared/rtc";
+import type { BlockPlan, CoachRun, PhoneMsg, ProfileView, TvMsg, WorkoutInput } from "@firefit/shared";
+import { DEFAULT_SESSION } from "@firefit/shared/programs";
+import { api, tvConnect } from "../shared/rtc";
 import { beep, unlockAudio } from "./beep";
-import { Library, type Program } from "./screens/Library";
+import { Library } from "./screens/Library";
 import { Pair } from "./screens/Pair";
 import { Summary, type CoachState } from "./screens/Summary";
 import { Workout, type Telemetry, type VideoStats } from "./screens/Workout";
 import { TopBar } from "./ui";
 import { useRemote } from "./useRemote";
-import { initWorkout, toWorkoutInput, workoutReducer, type Phase, type WorkoutEvent, type WorkoutState } from "./workout";
+import { current, initSession, sessionReducer, toWorkoutInput, type Phase, type SessionEvent, type SessionState } from "./workout";
 
 type Screen = "library" | "pair" | "workout" | "summary";
 const EMPTY: Telemetry = { stage: "lost", angle: 0, visible: false, phoneFps: 0, seq: 0, lastAt: Date.now() };
@@ -19,37 +20,35 @@ const PHASE_CMD: Record<Phase, TvMsg> = {
   ready: { t: "start" }, // phone tracks (and reports visibility); the TV ignores reps until ACTIVE
   active: { t: "resetSet" },
   rest: { t: "pause" },
+  transition: { t: "pause" },
   paused: { t: "pause" },
   complete: { t: "end" },
 };
 
-function buildPrograms(profile?: ProfileView | null): Program[] {
-  const base: Program[] = Object.values(PROGRAMS);
-  const next = profile?.profile.nextWorkout;
-  if (!next) return base;
-  const name = next.exercise === "squat" ? "Squats" : "Push-ups";
-  return [{ ...next, title: `Coach's plan: ${name}`, blurb: "", recommended: true, focusCue: profile?.profile.focusCue }, ...base];
-}
-
 export function App() {
   const [screen, setScreen] = useState<Screen>("library");
-  const [focus, setFocus] = useState(0);
   const [profile, setProfile] = useState<ProfileView | null>(null);
-  const [program, setProgram] = useState<Program | null>(null);
   const [pairing, setPairing] = useState<{ qrUrl?: string; code?: string; status: string }>({ status: "" });
-  const [w, setW] = useState<WorkoutState | null>(null);
+  const [w, setW] = useState<SessionState | null>(null);
   const [tel, setTel] = useState<Telemetry>(EMPTY);
   const [vstats, setVstats] = useState<VideoStats>({});
   const [link, setLink] = useState("new");
   const [now, setNow] = useState(Date.now());
   const [showDebug, setShowDebug] = useState(false); // Up on the remote shows link/decoder stats
   const [summary, setSummary] = useState<{ input: WorkoutInput; coach: CoachState } | null>(null);
+  const [chatScroll, setChatScroll] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
   const session = useRef<{ pc?: RTCPeerConnection; send?: (m: TvMsg) => unknown; abort: AbortController } | null>(null);
-  const phaseRef = useRef<Phase>("ready");
-  const programs = buildPrograms(profile);
+  const sent = useRef<string>("");
+  const wRef = useRef<SessionState | null>(null);
+  wRef.current = w;
 
-  const dispatch = useCallback((e: WorkoutEvent) => setW((s) => (s ? workoutReducer(s, e) : s)), []);
+  const blocks: BlockPlan[] = profile?.profile.next?.blocks ?? DEFAULT_SESSION.blocks;
+  const fromCoach = !!profile?.profile.next;
+  const who = profile?.profile.name ?? "Guest";
+  const weightKg = profile?.profile.weightKg ?? 80;
+
+  const dispatch = useCallback((e: SessionEvent) => setW((s) => (s ? sessionReducer(s, e) : s)), []);
   const send = useCallback((m: TvMsg) => session.current?.send?.(m), []);
 
   const loadProfile = useCallback(() => {
@@ -73,20 +72,33 @@ export function App() {
     hangUp();
     setW(null);
     setTel(EMPTY);
+    setSummary(null);
     setScreen("library");
     loadProfile();
   }, [hangUp, loadProfile, send]);
+
+  /** Tell the phone the current exercise and what to do, once per (block, set, phase) change. */
+  const syncPhone = useCallback((s: SessionState, force = false) => {
+    const b = current(s);
+    const key = `${s.block}:${s.set}:${s.phase}`;
+    if (!force && sent.current === key) return;
+    const prevBlock = sent.current.split(":")[0];
+    sent.current = key;
+    if (force || prevBlock !== String(s.block)) session.current?.send?.({ t: "config", exercise: b.exercise, target: b.target });
+    session.current?.send?.(PHASE_CMD[s.phase]);
+  }, []);
 
   const onMsg = useCallback(
     (m: PhoneMsg) => {
       const at = Date.now();
       if (m.t === "state") {
-        setTel((t) => ({ ...t, seq: m.seq, lastAt: at, stage: m.stage, angle: m.angle, visible: m.visible, phoneFps: m.fps }));
+        setTel((t) => ({ ...t, seq: m.seq, lastAt: at, stage: m.stage, angle: m.angle, visible: m.visible, phoneFps: m.fps, good: m.good, cue: m.cue }));
         dispatch({ type: "visible", visible: m.visible, now: at });
+        if (m.holdMs !== undefined) dispatch({ type: "hold", holdMs: m.holdMs, good: !!m.good, now: at });
       } else if (m.t === "rep") {
         setTel((t) => ({ ...t, seq: m.seq, lastAt: at, lastRep: { depth: m.depth, tempo: m.tempo, cue: m.cue } }));
-        if (phaseRef.current === "active") beep(m.cue ? 440 : 880);
-        dispatch({ type: "rep", rep: { depth: m.depth, tempo: m.tempo, ...(m.cue ? { cue: m.cue } : {}) }, now: at });
+        if (wRef.current?.phase === "active") beep(m.cue ? 440 : 880);
+        dispatch({ type: "rep", rep: { depth: m.depth, tempo: m.tempo, ...(m.at !== undefined ? { at: m.at } : {}), ...(m.cue ? { cue: m.cue } : {}) }, now: at });
       } else {
         setTel((t) => ({ ...t, lastAt: at, phoneFps: m.fps }));
       }
@@ -94,65 +106,65 @@ export function App() {
     [dispatch],
   );
 
-  const startPairing = useCallback(
-    async (p: Program) => {
-      hangUp();
-      const abort = new AbortController();
-      session.current = { abort };
-      setScreen("pair");
-      setPairing({ status: "Creating a pairing room…" });
-      try {
-        const s = await tvConnect({
-          video: videoRef.current!,
-          signal: abort.signal,
-          onRoom: (qrUrl, code) => setPairing({ qrUrl, code, status: "Waiting for your phone…" }),
-          onMsg,
-          onOpen: () => {
-            session.current?.send?.({ t: "config", exercise: p.exercise, targetReps: p.targetReps });
-            session.current?.send?.(PHASE_CMD[phaseRef.current]);
-            setScreen("workout");
-          },
-        });
-        if (abort.signal.aborted) return void s.pc.close();
-        session.current = { ...session.current!, pc: s.pc, send: s.send };
-        setPairing((st) => ({ ...st, status: "Phone found, connecting…" }));
-        s.pc.addEventListener("connectionstatechange", () => setLink(s.pc.connectionState));
-      } catch (err) {
-        if (!abort.signal.aborted)
-          setPairing((st) => ({ ...st, status: `Pairing failed: ${(err as Error).message}. Press Select to retry.` }));
-      }
-    },
-    [hangUp, onMsg],
-  );
+  const startPairing = useCallback(async () => {
+    hangUp();
+    const abort = new AbortController();
+    session.current = { abort };
+    setScreen("pair");
+    setPairing({ status: "Creating a pairing room…" });
+    try {
+      const s = await tvConnect({
+        video: videoRef.current!,
+        signal: abort.signal,
+        onRoom: (qrUrl, code) => setPairing({ qrUrl, code, status: "Waiting for your phone…" }),
+        onMsg,
+        onOpen: () => {
+          if (wRef.current) syncPhone(wRef.current, true);
+          setScreen("workout");
+        },
+      });
+      if (abort.signal.aborted) return void s.pc.close();
+      session.current = { ...session.current!, pc: s.pc, send: s.send };
+      setPairing((st) => ({ ...st, status: "Phone found, connecting…" }));
+      s.pc.addEventListener("connectionstatechange", () => setLink(s.pc.connectionState));
+    } catch (err) {
+      if (!abort.signal.aborted) setPairing((st) => ({ ...st, status: `Pairing failed: ${(err as Error).message}. Press Select to retry.` }));
+    }
+  }, [hangUp, onMsg, syncPhone]);
 
-  // Tell the phone what to do whenever the workout phase changes; save and coach on COMPLETE.
+  // Phase changes: drive the phone, play cues, and save + coach on COMPLETE.
   useEffect(() => {
     if (!w) return;
-    const prev = phaseRef.current;
-    phaseRef.current = w.phase;
-    if (prev === w.phase && w.phase !== "active") return;
-    send(PHASE_CMD[w.phase]);
-    if (w.phase === "active" && prev !== "active") beep(660, 160);
-    if (w.phase === "complete" && prev !== "complete") {
+    const prevPhase = sent.current.split(":")[2];
+    syncPhone(w);
+    if (w.phase === "active" && prevPhase !== "active") beep(660, 160);
+    if (w.phase === "complete" && prevPhase !== "complete") {
       beep(990, 300);
-      const input = toWorkoutInput(w);
+      const input = toWorkoutInput(w, weightKg);
       setSummary({ input, coach: { status: "saving" } });
+      setChatScroll(0);
       setScreen("summary");
       setTimeout(hangUp, 500);
       (async () => {
         try {
           const saved = await api<{ id: string }>("/workouts", "POST", input);
-          setSummary((s) => s && { ...s, coach: { status: "thinking" } });
-          const plan = await poll(() => api<CoachPlan>(`/workouts/${saved!.id}/coach`), 1500, 30_000).catch(() => null);
-          setSummary((s) => s && { ...s, coach: plan ? { status: "ready", plan } : { status: "unavailable" } });
+          setSummary((s) => s && { ...s, coach: { status: "waiting" } });
+          // Poll the coach: the transcript grows while the agent works, then the plan arrives.
+          for (const end = Date.now() + 90_000; Date.now() < end; await new Promise((r) => setTimeout(r, 1000))) {
+            const run = await api<CoachRun>(`/workouts/${saved!.id}/coach`).catch(() => null);
+            if (!run) continue;
+            setSummary((s) => s && { ...s, coach: { status: run.status, run } });
+            if (run.status === "done") return;
+          }
+          setSummary((s) => s && { ...s, coach: { ...s.coach, status: "unavailable" } });
         } catch (err) {
           setSummary((s) => s && { ...s, coach: { status: "error", error: (err as Error).message } });
         }
       })();
     }
-  }, [w?.phase, w?.set]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [w?.phase, w?.block, w?.set]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Clock + rest countdown
+  // Clock + rest/transition countdowns
   useEffect(() => {
     if (screen !== "workout") return;
     const id = setInterval(() => {
@@ -190,24 +202,20 @@ export function App() {
     unlockAudio();
     const t = Date.now();
     if (screen === "library") {
-      if (k === "left") setFocus((f) => Math.max(0, f - 1));
-      if (k === "right") setFocus((f) => Math.min(programs.length - 1, f + 1));
       if (k === "select") {
-        const p = programs[focus];
-        setProgram(p);
-        setW(initWorkout({ exercise: p.exercise, sets: p.sets, targetReps: p.targetReps, restSec: p.restSec }));
-        phaseRef.current = "ready";
+        sent.current = "";
+        setW(initSession(blocks));
         setTel(EMPTY);
-        startPairing(p);
+        startPairing();
       }
       if (k === "back") window.FireFitHost?.exit();
     } else if (screen === "pair") {
       if (k === "back") toLibrary();
-      if (k === "select" && pairing.status.startsWith("Pairing failed") && program) startPairing(program);
+      if (k === "select" && pairing.status.startsWith("Pairing failed")) startPairing();
     } else if (screen === "workout") {
       if (k === "up") setShowDebug((d) => !d);
       if (disconnected) {
-        if (k === "select" && program) startPairing(program);
+        if (k === "select") startPairing();
         if (k === "back") toLibrary();
         return;
       }
@@ -218,11 +226,9 @@ export function App() {
         else dispatch({ type: "playpause", now: t });
       }
     } else if (screen === "summary") {
-      if (k === "select" || k === "back") {
-        setSummary(null);
-        setFocus(0);
-        toLibrary();
-      }
+      if (k === "up") setChatScroll((n) => n - 1);
+      if (k === "down") setChatScroll((n) => n + 1);
+      if (k === "select" || k === "back") toLibrary();
     }
   });
 
@@ -232,13 +238,13 @@ export function App() {
     <>
       <video ref={videoRef} className={"remote-video" + (screen === "workout" ? " on" : "")} muted autoPlay playsInline />
       {screen !== "workout" && <div className="ambient" />}
-      {screen === "library" && <TopBar step="Library" who={profile?.profile.name} />}
-      {screen === "pair" && <TopBar step="Pair" who={profile?.profile.name} />}
-      {screen === "summary" && <TopBar step="Summary" who={profile?.profile.name} />}
-      {screen === "library" && <Library programs={programs} focus={Math.min(focus, programs.length - 1)} profile={profile} />}
-      {screen === "pair" && program && <Pair title={program.title} {...pairing} />}
-      {screen === "workout" && w && program && <Workout w={w} t={tel} v={vstats} link={link} now={now} showDebug={showDebug} />}
-      {screen === "summary" && summary && program && <Summary title={program.title} w={summary.input} coach={summary.coach} />}
+      {screen === "library" && <TopBar step="Library" who={who} />}
+      {screen === "pair" && <TopBar step="Pair" who={who} />}
+      {screen === "summary" && <TopBar step="Summary" who={who} />}
+      {screen === "library" && <Library blocks={blocks} fromCoach={fromCoach} profile={profile} />}
+      {screen === "pair" && <Pair title="Full body: squats · push-ups · plank" {...pairing} />}
+      {screen === "workout" && w && <Workout w={w} t={tel} v={vstats} link={link} now={now} who={who} weightKg={weightKg} showDebug={showDebug} />}
+      {screen === "summary" && summary && <Summary w={summary.input} coach={summary.coach} scroll={chatScroll} />}
     </>
   );
 }

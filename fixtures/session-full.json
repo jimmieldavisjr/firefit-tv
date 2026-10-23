@@ -1,0 +1,33 @@
+{
+  "plan": "full-body",
+  "durationSec": 640,
+  "activeSec": 250,
+  "caloriesEst": 41,
+  "bodyWeightKg": 80,
+  "blocks": [
+    {
+      "exercise": "squat", "sets": 3, "target": 10, "setsDone": 3,
+      "perSet": [10, 10, 10], "setSec": [31, 33, 35],
+      "perRep": [
+        { "depth": 96, "tempo": 2.3, "at": 2400 },
+        { "depth": 92, "tempo": 2.5, "at": 5300, "cue": "Push your knees out over your toes" },
+        { "depth": 94, "tempo": 2.4, "at": 8100 }
+      ],
+      "cues": ["Push your knees out over your toes"]
+    },
+    {
+      "exercise": "pushup", "sets": 3, "target": 8, "setsDone": 3,
+      "perSet": [8, 7, 6], "setSec": [24, 26, 27],
+      "perRep": [
+        { "depth": 88, "tempo": 1.9, "at": 2100 },
+        { "depth": 95, "tempo": 2.6, "at": 5000, "cue": "Keep your hips in line" }
+      ],
+      "cues": ["Keep your hips in line"]
+    },
+    {
+      "exercise": "plank", "sets": 3, "target": 30, "setsDone": 3,
+      "perSet": [30, 30, 22], "setSec": [38, 41, 45], "perRep": [],
+      "cues": ["Lift your hips a little"]
+    }
+  ]
+}

@@ -22,6 +22,9 @@ export interface FireFitStackProps extends StackProps {
   devOrigins: string[];
   /** Bedrock model or inference profile id the coach agent reasons with. */
   modelId: string;
+  /** Display name and body weight (for the labeled calorie estimate) of the single demo profile. */
+  profileName?: string;
+  profileWeightKg?: number;
 }
 
 export class FireFitStack extends Stack {
@@ -55,7 +58,7 @@ export class FireFitStack extends Stack {
       ...base,
       entry: path.join(apiSrc, "coach.ts"),
       memorySize: 1024,
-      timeout: Duration.seconds(60),
+      timeout: Duration.seconds(90), // two model calls: streamed analysis, then the structured plan
       retryAttempts: 0, // no duplicate plans
       environment: { TABLE: table.tableName, MODEL_ID: props.modelId },
       logGroup: new logs.LogGroup(this, "CoachLogs", { retention: logs.RetentionDays.ONE_MONTH, removalPolicy: RemovalPolicy.DESTROY }),
@@ -65,7 +68,12 @@ export class FireFitStack extends Stack {
       entry: path.join(apiSrc, "api.ts"),
       memorySize: 512,
       timeout: Duration.seconds(10),
-      environment: { TABLE: table.tableName, COACH_FN: coachFn.functionName },
+      environment: {
+        TABLE: table.tableName,
+        COACH_FN: coachFn.functionName,
+        PROFILE_NAME: props.profileName ?? "Guest",
+        PROFILE_WEIGHT_KG: String(props.profileWeightKg ?? 80),
+      },
       logGroup: new logs.LogGroup(this, "ApiLogs", { retention: logs.RetentionDays.ONE_MONTH, removalPolicy: RemovalPolicy.DESTROY }),
     });
     table.grantReadWriteData(apiFn);

@@ -1,105 +1,85 @@
 import { describe, expect, it } from "vitest";
-import { guard, rulesPlan, trends, type Workout } from "../src/trends";
+import fixture from "../../../fixtures/session-full.json";
+import { blockStats, guard, normalize, repIntervals, rulesPlan, trends, type Session } from "../src/trends";
 
-const w = (over: Partial<Workout> = {}): Workout => ({
-  id: "w1",
-  completedAt: "2026-10-23T00:00:00.000Z",
-  exercise: "squat",
-  sets: 2,
-  targetReps: 5,
-  reps: 10,
-  durationSec: 120,
-  avgDepthDeg: 95,
-  avgTempoSec: 2,
-  perRep: Array.from({ length: 10 }, () => ({ depth: 95, tempo: 2 })),
-  ...over,
-});
+const session = (over: Partial<Session> = {}): Session => ({ ...(fixture as unknown as Session), id: "s1", completedAt: "2026-10-23T00:00:00Z", ...over });
+const block = (i: number, patch: object) => {
+  const s = session();
+  s.blocks = s.blocks.map((b, j) => (j === i ? { ...b, ...patch } : b));
+  return s;
+};
+const clean = () => {
+  const s = session();
+  s.blocks = s.blocks.map((b) => ({ ...b, perSet: Array(b.sets).fill(b.target), cues: [], perRep: b.perRep.map(({ cue: _c, ...r }) => r) }));
+  return s;
+};
 
-describe("trends", () => {
-  it("computes target, cue rate and top cue for the newest session", () => {
-    const cueReps = [
-      { depth: 100, tempo: 2, cue: "Knees out" },
-      { depth: 100, tempo: 2, cue: "Knees out" },
-      { depth: 100, tempo: 2, cue: "Hips back" },
-    ];
-    const t = trends([w({ perRep: [...cueReps, ...Array.from({ length: 7 }, () => ({ depth: 95, tempo: 2 }))] })]);
-    expect(t.targetMet).toBe(true);
-    expect(t.cueRate).toBe(0.3);
-    expect(t.topCue).toBe("Knees out");
-    expect(t.sessionsCompared).toBe(0);
-    expect(t.repsChangePct).toBeNull();
+describe("stats", () => {
+  it("computes seconds between reps within a set", () => {
+    expect(repIntervals(fixture.blocks[0].perRep)).toEqual([2.9, 2.8]);
+    const st = blockStats(fixture.blocks[0] as Session["blocks"][number]);
+    expect(st).toMatchObject({ total: 30, targetMet: true, avgSecBetweenReps: 2.8, topCue: "Push your knees out over your toes" });
   });
 
-  it("compares against earlier sessions", () => {
-    const t = trends([w({ reps: 6 }), w({ reps: 10, avgDepthDeg: 100 }), w({ reps: 10, avgDepthDeg: 100 })]);
-    expect(t.repsChangePct).toBe(-40);
-    expect(t.depthChangeDeg).toBe(-5);
+  it("marks push-ups and plank as missed when a set fell short", () => {
+    const t = trends([session()]);
+    expect(t.blocks.map((b) => [b.exercise, b.targetMet])).toEqual([["squat", true], ["pushup", false], ["plank", false]]);
+    expect(t.blocks[2]).toMatchObject({ unit: "sec", total: 82, targetTotal: 90 });
+  });
+
+  it("compares totals with earlier sessions per exercise", () => {
+    const t = trends([block(1, { perSet: [4, 4, 4] }), session(), session()]);
+    expect(t.blocks[1].totalChangePct).toBe(-43);
+  });
+
+  it("normalizes the older single-exercise records", () => {
+    const s = normalize({ id: "o", completedAt: "x", exercise: "squat", sets: 2, targetReps: 5, reps: 10, durationSec: 60, perRep: [{ depth: 90, tempo: 2, cue: "Push your knees out over your toes" }] });
+    expect(s?.blocks[0]).toMatchObject({ exercise: "squat", target: 5, perSet: [10], cues: ["Push your knees out over your toes"] });
   });
 });
 
 describe("rulesPlan", () => {
-  it("progresses by +2 reps when the target is met with clean form", () => {
-    const last = w();
-    const p = rulesPlan(trends([last]), last);
+  it("progresses every exercise when all targets were met with clean form", () => {
+    const p = rulesPlan(trends([clean()]), clean());
     expect(p.decision).toBe("progress");
-    expect(p.nextWorkout.targetReps).toBe(7);
+    expect(p.next.blocks.map((b) => b.target)).toEqual([12, 10, 40]);
   });
 
-  it("chooses technique when cues appear on 30%+ of reps", () => {
-    const last = w({ perRep: Array.from({ length: 10 }, (_, i) => ({ depth: 95, tempo: 2, cue: i < 4 ? "Knees out" : undefined })) });
-    const p = rulesPlan(trends([last]), last);
+  it("chooses technique when cues hit 30% of reps", () => {
+    const p = rulesPlan(trends([session()]), session()); // squats: 1 cue in 3 recorded reps
     expect(p.decision).toBe("technique");
-    expect(p.focusCue).toBe("Knees out");
-    expect(p.nextWorkout.targetReps).toBe(5);
+    expect(p.next.blocks.map((b) => b.target)).toEqual([10, 8, 30]);
+    expect(p.insights.length).toBe(3);
   });
 
-  it("deloads when reps drop more than 20%", () => {
-    const last = w({ reps: 6 });
-    const p = rulesPlan(trends([last, w(), w()]), last);
+  it("deloads when an exercise dropped more than 20%", () => {
+    const low = clean();
+    low.blocks[1] = { ...low.blocks[1], perSet: [3, 3, 3] };
+    const p = rulesPlan(trends([low, clean(), clean()]), low);
     expect(p.decision).toBe("deload");
-    expect(p.nextWorkout.targetReps).toBe(3);
-  });
-
-  it("holds when the target is missed", () => {
-    const last = w({ reps: 9 });
-    expect(rulesPlan(trends([last]), last).decision).toBe("hold");
+    expect(p.next.blocks[1].target).toBe(6);
   });
 });
 
 describe("guard", () => {
-  const plan = (over: Partial<Parameters<typeof guard>[0]> = {}) => ({
-    decision: "progress" as const,
-    recap: "",
-    focusCue: "Sit back",
-    reason: "",
-    nextWorkout: { exercise: "squat" as const, sets: 2, targetReps: 5, restSec: 60 },
-    ...over,
+  const base = { decision: "progress" as const, recap: "", insights: [], focusCue: "", reason: "" };
+
+  it("keeps the three exercises in order and clamps targets", () => {
+    const p = guard({ ...base, next: { blocks: [{ exercise: "plank", sets: 9, target: 500, restSec: 1 }] } }, clean());
+    expect(p.next.blocks.map((b) => b.exercise)).toEqual(["squat", "pushup", "plank"]);
+    expect(p.next.blocks[2]).toEqual({ exercise: "plank", sets: 4, target: 40, restSec: 20 });
   });
 
-  it("clamps sets, reps (+2 max) and rest", () => {
-    const p = guard(plan({ nextWorkout: { exercise: "squat", sets: 9, targetReps: 30, restSec: 5 } }), { targetReps: 5, exercise: "squat" });
-    expect(p.nextWorkout).toEqual({ exercise: "squat", sets: 5, targetReps: 7, restSec: 30 });
+  it("forces progress on met targets only, and hold to keep targets", () => {
+    const unchanged = { blocks: [{ exercise: "squat" as const, sets: 3, target: 10, restSec: 45 }, { exercise: "pushup" as const, sets: 3, target: 9, restSec: 45 }] };
+    const p = guard({ ...base, next: unchanged }, session());
+    expect(p.next.blocks.map((b) => b.target)).toEqual([12, 8, 30]); // squats met -> raised; push-ups missed -> capped at 8
+    const h = guard({ ...base, decision: "hold", next: { blocks: [{ exercise: "squat", sets: 3, target: 14, restSec: 45 }] } }, session());
+    expect(h.next.blocks[0].target).toBe(10);
   });
 
-  it("makes targets agree with the decision", () => {
-    const last = { targetReps: 5, exercise: "squat" as const };
-    expect(guard(plan({ decision: "progress" }), last).nextWorkout.targetReps).toBe(7); // model kept 5: forced up
-    expect(guard(plan({ decision: "hold", nextWorkout: { exercise: "squat", sets: 2, targetReps: 7, restSec: 60 } }), last).nextWorkout.targetReps).toBe(5);
-    expect(guard(plan({ decision: "deload" }), last).nextWorkout.targetReps).toBe(3);
-  });
-
-  it("keeps the reviewed exercise and an exercise-appropriate cue", () => {
-    const p = guard(
-      plan({ decision: "progress", focusCue: "Push your knees out over your toes", nextWorkout: { exercise: "squat", sets: 2, targetReps: 7, restSec: 60 } }),
-      { targetReps: 5, exercise: "pushup" },
-      null,
-    );
-    expect(p.nextWorkout.exercise).toBe("pushup");
-    expect(p.focusCue).toBe("Keep your body in one straight line");
-  });
-
-  it("technique uses the most common cue from the session", () => {
-    const p = guard(plan({ decision: "technique", focusCue: "Breathe" }), { targetReps: 5, exercise: "squat" }, "Push your knees out over your toes");
+  it("technique uses the most common cue", () => {
+    const p = guard({ ...base, decision: "technique", focusCue: "Breathe", next: { blocks: [] } }, session(), "Push your knees out over your toes");
     expect(p.focusCue).toBe("Push your knees out over your toes");
   });
 });

@@ -1,11 +1,21 @@
 // Shared 10-foot UI pieces: top bar, exercise icon, gradient rings.
 import { useEffect, useState } from "react";
-import { Dumbbell, Flame, PersonStanding, User } from "lucide-react";
+import { BicepsFlexed, Flame, Hourglass, PersonStanding } from "lucide-react";
 import type { Exercise } from "@firefit/shared";
 
 export function ExerciseIcon({ exercise, size = 40 }: { exercise: Exercise; size?: number }) {
-  return exercise === "squat" ? <PersonStanding size={size} strokeWidth={2.2} /> : <Dumbbell size={size} strokeWidth={2.2} />;
+  if (exercise === "squat") return <PersonStanding size={size} strokeWidth={2.2} />;
+  if (exercise === "pushup") return <BicepsFlexed size={size} strokeWidth={2.2} />;
+  return <Hourglass size={size} strokeWidth={2.2} />;
 }
+
+export const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("") || "G";
 
 const STEPS = ["Library", "Pair", "Workout", "Summary"] as const;
 export type Step = (typeof STEPS)[number];
@@ -31,7 +41,7 @@ export function TopBar({ step, who = "Guest" }: { step: Step; who?: string }) {
       </nav>
       <div className="right">
         <span className="who">
-          <User size={26} /> {who}
+          <span className="mini-avatar">{initials(who)}</span> {who}
         </span>
         <span className="num">{clock.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
       </div>
