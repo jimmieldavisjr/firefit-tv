@@ -10,6 +10,7 @@ import type { BlockPlan, Rep, WorkoutInput } from "@firefit/shared";
 export const READY_HOLD_MS = 2000;
 export const TRANSITION_SEC = 40;
 const REST_MET = 1.3; // standing rest; Compendium of Physical Activities
+const MAX_SEC_PER_REP = 5; // a controlled rep takes 2-4 s; longer gaps inside a set are standing, not squatting
 
 export type Phase = "ready" | "active" | "rest" | "transition" | "paused" | "complete";
 type Resumable = Exclude<Phase, "paused" | "complete">;
@@ -154,17 +155,32 @@ export function activeMs(s: SessionState, now: number) {
   return done + (s.phase === "active" && s.setStartedAt ? now - s.setStartedAt : 0);
 }
 
-/** Labeled estimate: MET x 3.5 x kg / 200 per minute (ACSM), per exercise for active time, light MET for the rest. */
-export function caloriesEst(s: SessionState, now: number, kg: number) {
-  const perMin = (met: number) => (met * 3.5 * kg) / 200;
-  let kcal = 0;
-  s.plan.forEach((b, i) => {
-    const ms = s.logs[i].activeMs + (i === s.block && s.phase === "active" && s.setStartedAt ? now - s.setStartedAt : 0);
-    kcal += perMin(EXERCISE_INFO[b.exercise].met) * (ms / 60000);
-  });
-  const restMin = Math.max(0, elapsedSec(s, now) - activeMs(s, now) / 1000) / 60;
-  return Math.round(kcal + perMin(REST_MET) * restMin);
+/** Work time the camera actually saw in one set: reps x up to 5 s (squat, push-up) or good-form hold seconds (plank),
+ *  never more than the set lasted. */
+function setWorkSec(timed: boolean, progress: number, setSec: number) {
+  return Math.min(setSec, timed ? progress : progress * MAX_SEC_PER_REP);
 }
+
+/** Calorie estimate with the MET method (ACSM): kcal = MET x 3.5 x body weight (kg) / 200 x minutes.
+ *  Exercise MET applies only to work time (reps or good-form hold seconds within each set); everything else in the
+ *  session (rests, setup, moving the phone, idle time inside a set) counts at standing rest, MET 1.3. Gross estimate:
+ *  it includes resting metabolism, like a fitness watch's "total" calories. */
+export function calorieBreakdown(s: SessionState, now: number, kg: number) {
+  const perMin = (met: number) => (met * 3.5 * kg) / 200;
+  const exercises = s.plan.map((b, i) => {
+    const timed = isTimed(b);
+    const log = s.logs[i];
+    let work = log.perSet.reduce((a, progress, j) => a + setWorkSec(timed, progress, log.setSec[j] ?? 0), 0);
+    if (i === s.block && s.phase === "active" && s.setStartedAt) work += setWorkSec(timed, setProgress(s), (now - s.setStartedAt) / 1000);
+    return { exercise: b.exercise, workSec: work, kcal: perMin(EXERCISE_INFO[b.exercise].met) * (work / 60) };
+  });
+  const workSec = exercises.reduce((a, e) => a + e.workSec, 0);
+  const restSec = Math.max(0, elapsedSec(s, now) - workSec);
+  const kcal = exercises.reduce((a, e) => a + e.kcal, 0) + perMin(REST_MET) * (restSec / 60);
+  return { kcal, workSec, restSec, exercises };
+}
+
+export const caloriesEst = (s: SessionState, now: number, kg: number) => Math.round(calorieBreakdown(s, now, kg).kcal);
 
 export function setsDone(s: SessionState) {
   return s.logs.reduce((a, l) => a + l.perSet.length, 0);

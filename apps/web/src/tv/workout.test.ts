@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { WorkoutInput } from "@firefit/shared";
 import {
+  calorieBreakdown,
   caloriesEst,
   elapsedSec,
   initSession,
@@ -75,12 +76,23 @@ describe("session state machine", () => {
     expect(elapsedSec(s, 80_000)).toBe(18);
   });
 
-  it("estimates calories from active time per exercise and rest time", () => {
-    let s = ready(initSession(plan), 0);
-    s = run(s, { type: "select", now: 2000 + 60_000 }); // one minute of squats, then rest
-    // squats MET 5.0 at 80 kg: 5 * 3.5 * 80 / 200 = 7 kcal/min
+  it("estimates calories from work the camera saw, with the rest of the session at standing MET", () => {
+    let s = ready(initSession([{ exercise: "squat", sets: 2, target: 12, restSec: 45 }]), 0); // active from 2 s
+    // 12 squats, one every 5 s, end the set at 62 s: 60 s of work (12 x 5 s cap); squats MET 5.0 at 80 kg = 7 kcal/min
+    for (let i = 1; i <= 12; i++) s = run(s, { type: "rep", rep: rep(i * 5000), now: 2000 + i * 5000 });
+    expect(calorieBreakdown(s, 62_000, 80).workSec).toBe(60);
     expect(caloriesEst(s, 62_000, 80)).toBe(7);
     expect(caloriesEst(s, 62_000, 100)).toBe(9); // scales with body weight (8.75 rounds to 9)
+    // a minute of standing rest adds MET 1.3: 1.3 * 3.5 * 80 / 200 = 1.82 kcal
+    expect(calorieBreakdown(s, 122_000, 80).kcal).toBeCloseTo(7 + 1.82, 1);
+  });
+
+  it("does not credit idle time inside a set as exercise", () => {
+    let s = ready(initSession(plan), 0);
+    s = run(s, { type: "rep", rep: rep(2500), now: 5000 }, { type: "select", now: 62_000 }); // 1 squat, 60 s set
+    const b = calorieBreakdown(s, 62_000, 80);
+    expect(b.workSec).toBe(5);
+    expect(b.restSec).toBe(55);
   });
 
   it("builds a valid WorkoutInput with per-set data and time between reps", () => {

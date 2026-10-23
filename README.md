@@ -75,6 +75,29 @@ flowchart LR
 
 More detail: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
+## Calorie estimate
+
+FireFIT estimates calories without a watch or heart-rate monitor, using the standard **MET method** (ACSM):
+
+```
+kcal = MET × 3.5 × body weight (kg) ÷ 200 × minutes
+```
+
+A MET (metabolic equivalent) is how hard an activity is compared with sitting still. FireFIT uses your profile weight and splits the session into what the camera actually saw:
+
+| Part of the session | Time counted | MET |
+| --- | --- | --- |
+| Squats | reps × up to 5 s each, never more than the set lasted | 5.0 |
+| Push-ups | reps × up to 5 s each, never more than the set lasted | 3.8 |
+| Plank | seconds held with good form | 3.0 |
+| Everything else: rests between sets, setup, moving the phone, idle time inside a set | the rest of the session | 1.3 (standing rest) |
+
+MET values follow the Compendium of Physical Activities (squats and calisthenics at moderate effort, light-to-moderate isometric core work, standing rest). Counting only rep and hold time keeps the estimate from crediting time spent standing around: one squat in a 60-second set counts 5 seconds of squatting and 55 seconds of standing.
+
+Example: an 80 kg person doing 12 squats in a minute burns about 5.0 × 3.5 × 80 ÷ 200 = **7 kcal**, and a 1-minute rest adds 1.3 × 3.5 × 80 ÷ 200 ≈ **1.8 kcal**.
+
+This is a gross estimate (it includes resting metabolism, like a watch's "total" calories) and is shown as **Calories (est.)**. Without height, age, sex or heart rate it can be off by 20–30% for an individual. Implementation: [`calorieBreakdown`](apps/web/src/tv/workout.ts), with unit tests in [`workout.test.ts`](apps/web/src/tv/workout.test.ts).
+
 ## Repository layout
 
 | Path | What it is |
