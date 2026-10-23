@@ -9,5 +9,5 @@ Read `docs/PROGRESS.md` first (status and verification level of each component),
 - Camera video must never reach AWS. Never present the rules fallback (`source: "rules"`) as AI output.
 - Fire TV shell: `apps/tv-shell` (AGP 9.4.1, Gradle 9.8.2, JDK 21 at `C:\Program Files\Android\openjdk\jdk-21.0.8`). adb lives at `%LOCALAPPDATA%\Android\Sdk\platform-tools`.
 - `docs/reference/` is private planning material (gitignored). The Ship Plan there is the implementation baseline.
-- Report verification honestly: Impl / Build / Test / Device / Prod. Log real snags in `docs/friction-log.md` as they happen.
+- Report verification honestly: Impl / Build / Test / Device / Prod. `docs/friction-log.md` is owner-curated (one entry, the owner's own words): never add to or edit it without the owner's OK.
 - The owner may be editing in VS Code at the same time: check `git status` before broad changes; never discard their work.

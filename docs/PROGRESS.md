@@ -11,7 +11,7 @@ Verification levels: **Impl** = code exists · **Build** = compiles/bundles · *
 | --- | --- | --- |
 | Monorepo (pnpm, TS, ESLint, Vitest, CI) | Build · Test | `pnpm check` green: 33 tests |
 | Shared contract (`packages/shared`) | Test | Zod schemas + message types |
-| Gate 0 probe (`probe.html`) | **Device** | **GATE 0 PASS on the Fire TV** at 640×360 @ 15 loopback (details below). The 1280×720 @ 30 loopback runs the stick out of memory (F-03) |
+| Gate 0 probe (`probe.html`) | **Device** | **GATE 0 PASS on the Fire TV** at 640×360 @ 15 loopback (details below). The 1280×720 @ 30 loopback runs the stick out of memory |
 | Fire TV shell (`apps/tv-shell`) | **Device** | Installed via adb; loads the dev server; D-pad focus moves; 1920-px layout scaled to the 4K output; ~70 MB PSS |
 | Rep engine (squat, push-up) + plank engine | Test (push-up/plank) | 10 unit tests (full and half squats, spikes, low visibility, tracking loss, cues). **Not yet tuned on a real body** |
 | Pairing/WebRTC client (`rtc.ts`) | **Device** | **Gate 2 PASS**: S23 → Fire TV over the live API (see evidence). Sender cap lowered 2.5 → 1.5 Mbps after the first run |
