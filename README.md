@@ -93,7 +93,9 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 Open **FireFIT** from the Fire TV home row and pick **Squat Fundamentals** with the remote. Scan the QR code with your phone. Stand 2.5–3 m away with your whole body in frame.
 
-Local development, LAN dev servers, and device debugging are covered in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Local development, LAN dev servers, and device debugging are covered in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md). Appstore assets and listing text (tile, cover background, descriptions) are in [docs/store-assets](docs/store-assets/LISTING.md).
+
+**Audio:** `node scripts/gen-audio.mjs` regenerates the bundled sound effects and music with an ElevenLabs key in `.env.elevenlabs` (gitignored). The Kotlin shell plays them offline (Media3 ExoPlayer for music, SoundPool for effects); music and effects volumes are on the home screen.
 
 ## Security model (demo scope, stated plainly)
 
@@ -113,6 +115,7 @@ Local development, LAN dev servers, and device debugging are covered in [docs/DE
 - FireFIT is MIT licensed: see [LICENSE](LICENSE).
 - Exercise photos, cover art and the FireFIT logo artwork were provided by the project owner; third-party logos on shoes are blurred in the app's copies.
 - [lucide](https://lucide.dev) icons are ISC licensed.
+- Sound effects were generated with [ElevenLabs](https://elevenlabs.io) (Sound Effects API) at development time and are bundled in the app; the app never calls ElevenLabs. Read-aloud reports use Amazon Polly.
 - [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) and its Pose Landmarker models are Apache 2.0, by Google.
 - [Strands Agents SDK](https://github.com/strands-agents) is Apache 2.0.
 - Amazon Nova via Amazon Bedrock. React, Vite, Zod, AWS CDK and the AWS SDK for JavaScript are each under their own open-source licenses.

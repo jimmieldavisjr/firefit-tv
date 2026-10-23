@@ -19,8 +19,10 @@ function apiKey() {
   if (process.env.ELEVENLABS_API_KEY) return process.env.ELEVENLABS_API_KEY.trim();
   const f = join(root, ".env.elevenlabs");
   if (existsSync(f)) {
-    const m = readFileSync(f, "utf8").match(/ELEVENLABS_API_KEY\s*=\s*["']?([^"'\r\n]+)/);
+    const text = readFileSync(f, "utf8").replace(/^﻿/, "").trim();
+    const m = text.match(/ELEVENLABS_API_KEY\s*=\s*["']?([^"'\r\n]+)/);
     if (m) return m[1].trim();
+    if (text && !text.includes("=") && !/\s/.test(text)) return text; // the file holds just the key
   }
   throw new Error("Set ELEVENLABS_API_KEY or create .env.elevenlabs with ELEVENLABS_API_KEY=...");
 }
