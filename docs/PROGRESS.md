@@ -25,7 +25,8 @@ Verification levels: **Impl** = code exists · **Build** = compiles/bundles · *
 
 - **Fire TV:** Fire TV Stick 4K 1st gen (2018), model AFTMM, Fire OS 6.7.1.1 (Android 7.1.2, API 25), 32-bit armeabi-v7a, ~1.3 GB RAM, outputs 3840×2160. Amazon WebView Chromium 118. adb at `192.168.12.253:5555`.
 - **Network:** TV, phone and laptop (`192.168.12.210`) are on the same Wi-Fi, 192.168.12.x.
-- **Phone:** _TBD_
+- **Phone:** Samsung Galaxy S23, Google Chrome.
+- **AWS:** profile `firefit`, us-east-1, account 720022410355. **Deploy blocked by an org SCP (B-02)**; Bedrock account verification pending (B-03).
 
 ## Gate 0 evidence (Oct 22, 21:40 PT, on the Fire TV)
 
@@ -50,5 +51,6 @@ Verification levels: **Impl** = code exists · **Build** = compiles/bundles · *
 
 - **21:00** Repo empty except `docs/reference`. Read the Ship Plan and the directive.
 - **21:20** Public repo created: https://github.com/jimmieldavisjr/firefit-tv (MIT). CI and the APK release workflow are configured.
+- **21:50** AWS profile works, but an org SCP denies CloudFormation/Lambda/DynamoDB/API Gateway (B-02), and Bedrock is waiting on account verification (B-03). Local work continues.
 - **21:40** Gate 0 passed on the real Fire TV (L0 viable). Fixed the shell's viewport scaling (4K output) and the page focus outline.
 - **21:25** Monorepo scaffolded. Shared contract, ApiFn/CoachFn/trends, CDK stack, probe page, rep engine and Kotlin shell all in place. `pnpm check` green; CDK synth bundles both Lambdas; debug APK builds.
