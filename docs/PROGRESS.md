@@ -14,9 +14,9 @@ Verification levels: **Impl** = code exists · **Build** = compiles/bundles · *
 | Gate 0 probe (`probe.html`) | **Device** | **GATE 0 PASS on the Fire TV** at 640×360 @ 15 loopback (details below). The 1280×720 @ 30 loopback runs the stick out of memory (F-03) |
 | Fire TV shell (`apps/tv-shell`) | **Device** | Installed via adb; loads the dev server; D-pad focus moves; 1920-px layout scaled to the 4K output; ~70 MB PSS |
 | Rep engine | Test | 10 unit tests (full and half squats, spikes, low visibility, tracking loss, cues). **Not yet tuned on a real body** |
-| Pairing/WebRTC client (`rtc.ts`) | Build | Non-trickle ICE, bitrate cap. Not yet exercised |
+| Pairing/WebRTC client (`rtc.ts`) | **Device** | **Gate 2 PASS**: S23 → Fire TV over the live API (see evidence). Sender cap lowered 2.5 → 1.5 Mbps after the first run |
 | Phone page (camera, pose, canvas, stream) | Impl (skeleton) | Block 1 |
-| TV UI (library, pair, HUD, summary) | Impl (skeleton) | Block 3; only the library cards and D-pad focus so far |
+| TV UI (library, pair, HUD, summary) | **Device** (library, pair, live) · Impl pending (sets/rest/summary) | Remote-only Library → Pair (QR) → Live verified on the TV. Block 3: state machine, rest, summary, coach card |
 | ApiFn (6 routes) | **Prod** | 11 handler tests; `pnpm smoke` against the live API: rooms, token 403, SDP round-trip, 400 validation, workout save |
 | CoachFn (Strands agent + rules fallback) | **Prod** | Live run: `source: "agent"`, Nova 2 Lite, all 3 tools called, decision `technique`, plan written to PROFILE in ~3 s (Gate 4 backend evidence below). TV summary/library display not built yet |
 | CDK stack | **Prod** | Deployed to 720022410355 / us-east-1 in 216 s. CloudFront serves the pages, the 9.4 MB model and the wasm (`application/wasm`); the TV loads production `tv.html` over HTTPS |
@@ -46,6 +46,12 @@ Verification levels: **Impl** = code exists · **Build** = compiles/bundles · *
 `{"evt":"coach_run","workoutId":"d8668abe-…","source":"agent","model":"us.amazon.nova-2-lite-v1:0","decision":"technique","toolCalls":["get_profile","get_workout_history","analyze_trends"],"latencyMs":3020}`
 Agent recap: "Session met target with 30 reps in 3 sets. Tempo SD was 0.1 seconds. Form cue appeared on 30% of reps." The decision matches the rules (cue rate 0.3 ≥ 0.3 → technique).
 
+## Gate 2 evidence (Oct 22, ~23:20 PT, real devices)
+
+TV screenshot over adb while paired with the S23: live phone video (portrait 540×960) on the TV, rep ring at 17, last rep "depth 70° · tempo 3.7s", knee cue shown. Debug strip: `link connected · msg #2242 state 0ms ago · angle 106° · phone 39 fps · TV video 14 fps 540×960 H264 · decoded 3336 · lost 228`.
+**Result: PASS** (live video decodes on the TV; real reps from the phone update the TV counter). Follow-ups: the TV decoded ~14 fps with ~6% loss at a 2.5 Mbps cap, so it's now 1.5 Mbps (L1); film in landscape; set targets are enforced in Block 3.
+**Gate 1 accuracy (10/10 full, 0/5 half) is still unconfirmed:** the owner's report used the pre-filled template both times.
+
 ## Schedule (recalculated from 21:25 PT)
 
 | Block | Target (PT) | Gate | Owner involvement |
@@ -64,6 +70,7 @@ Agent recap: "Session met target with 30 reps in 3 sets. Tempo SD was 0.1 second
 
 - **21:00** Repo empty except `docs/reference`. Read the Ship Plan and the directive.
 - **21:20** Public repo created: https://github.com/jimmieldavisjr/firefit-tv (MIT). CI and the APK release workflow are configured.
+- **23:20** **Gate 2 PASS** on real devices (adb screenshot evidence). Phone start-screen bug fixed (`[hidden]` overridden by `display:flex`).
 - **22:20** SCPs removed. Stack deployed (216 s); `pnpm smoke` 10/10 with a real Strands → Bedrock run; web app published to CloudFront; production `tv.html` loads on the TV. Repo variable `FIREFIT_URL` set for release APKs.
 - **21:50** AWS profile works, but an org SCP denies CloudFormation/Lambda/DynamoDB/API Gateway (B-02), and Bedrock is waiting on account verification (B-03). Local work continues.
 - **21:40** Gate 0 passed on the real Fire TV (L0 viable). Fixed the shell's viewport scaling (4K output) and the page focus outline.

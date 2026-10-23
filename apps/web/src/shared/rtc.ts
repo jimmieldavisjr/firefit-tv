@@ -4,8 +4,8 @@ import type { PhoneMsg, RoomCreated, TvMsg } from "@firefit/shared";
 
 const API = import.meta.env.VITE_API_URL ?? "";
 const ICE: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
-/** ~2.5 Mbps sender cap (Ship Plan Block 2). */
-const MAX_BITRATE = 2_500_000;
+/** 1.5 Mbps sender cap: at 2.5 Mbps the Fire TV Stick 4K decoded only ~14 of 24 fps with ~6% packet loss (Gate 2). */
+const MAX_BITRATE = 1_500_000;
 
 export async function api<T = unknown>(path: string, method = "GET", body?: unknown, token?: string): Promise<T | null> {
   const r = await fetch(API + path, {
