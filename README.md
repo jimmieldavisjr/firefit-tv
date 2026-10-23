@@ -6,39 +6,31 @@ Most Fire TVs have no camera. FireFIT uses your phone as one. Start the session 
 
 > **Status: in active development for the Amazon _Build, Ship, Shape_ hackathon (Fire TV track + AWS Builder).**
 > [docs/PROGRESS.md](docs/PROGRESS.md) tracks what is implemented and how each part was verified (build, automated test, real device, production).
-> Demo video: _coming soon_ · Release APK: [`firefit.apk`](https://github.com/jimmieldavisjr/firefit-tv/releases/latest/download/firefit.apk) (see [Releases](../../releases))
+> Demo video (recorded on a real Fire TV): _coming soon_
 
-## Install on Fire TV
+## Try it on Fire TV
 
-FireFIT runs on **Fire OS 6, 7 and 8** devices (Fire TV Stick 4K / 4K Max, Fire TV Cube and others). Vega OS devices, such as the Fire TV Stick 4K Select, can't install APKs: the demo video is the way to see FireFIT there.
+FireFIT runs on **Fire OS 6, 7 and 8** devices (Fire TV Stick 4K / 4K Max, Fire TV Cube and others). Vega OS devices, such as the Fire TV Stick 4K Select, can't install APKs: watch the demo video there. You also need an Android phone with Chrome on the same Wi-Fi.
 
-The newest APK is always at:
-
-```
-https://github.com/jimmieldavisjr/firefit-tv/releases/latest/download/firefit.apk
-```
-
-**A) Easy, no computer**
+**1. Install with Downloader (no computer)**
 
 1. On the Fire TV, install **Downloader** (by AFTVnews) from the Amazon Appstore.
 2. Go to **Settings › My Fire TV › About** and click the device name 7 times to unlock Developer Options.
 3. Go to **Settings › My Fire TV › Developer Options › Install unknown apps** and turn **Downloader** on.
-4. Open Downloader, type the APK link above (or its short link), and install.
+4. Open Downloader, type **`firefit.dev`**, and install.
 5. Open **FireFIT** from **Your Apps & Channels**. Optional: press the Menu (☰) button on it and choose **Move to front** to pin it to the home row.
+6. Create your profile, press **Start**, and scan the QR code on the TV with your Android phone's camera. Nothing to install on the phone. Prop the phone up in landscape 2.5–3 m away with your whole body in frame; the TV tells you when to move it to floor level for push-ups and the plank.
 
-**B) Developer (adb)**
+**2. Or install with adb**
 
-1. **Settings › My Fire TV › Developer Options › ADB debugging** on.
-2. Then:
+Turn on **Settings › My Fire TV › Developer Options › ADB debugging**, download [`firefit.apk`](https://github.com/jimmieldavisjr/firefit-tv/releases/latest/download/firefit.apk) (always the newest [release](../../releases)), then:
 
 ```bash
 adb connect <fire-tv-ip>:5555
 adb install firefit.apk
 ```
 
-**Then work out:** create your profile, press **Start**, and scan the QR code with your phone's camera. No app install on the phone. Prop the phone up in landscape 2.5–3 m away with your whole body in frame. The TV tells you when to move the phone to floor level for push-ups and the plank.
-
-**No Fire TV?** Open [phone.html](https://dctlk09e4uy0d.cloudfront.net/phone.html) in Chrome on a laptop with a webcam (or on a phone) and use the self-test buttons to see live rep counting for squats, push-ups and the plank without a TV.
+**3. Demo video:** _coming soon_ (filmed on a real Fire TV).
 
 ### Compatibility and troubleshooting
 
@@ -46,6 +38,7 @@ adb install firefit.apk
 - **Network:** the TV and phone must be on the **same main Wi-Fi**. Guest and office networks, and some mesh routers, block device-to-device connections. If pairing fails, the TV says so and offers **Re-pair**; turning on your phone's hotspot and joining the TV to it is a reliable workaround.
 - **Framing:** stand 2.5–3 m back with your whole body in frame. Squats need a front view; push-ups and the plank need a side view with the phone at floor level.
 - **Phone stuck on "Loading pose model":** keep the page open on Wi-Fi; the first load downloads the model (about 9 MB).
+- **Developer note:** [phone.html](https://dctlk09e4uy0d.cloudfront.net/phone.html) opened on its own (no QR code) is a self-test: live rep counting for squats, push-ups and the plank on a phone or a laptop webcam, without a TV.
 
 ## How it works
 
@@ -121,7 +114,7 @@ pnpm deploy:web      # builds the web app against ApiUrl, syncs to S3, invalidat
 
 ### 2. Install the TV app
 
-See [Install on Fire TV](#install-on-fire-tv) for the release APK. To build it yourself:
+See [Try it on Fire TV](#try-it-on-fire-tv) for the release APK. To build it yourself:
 
 ```bash
 cd apps/tv-shell
@@ -156,7 +149,7 @@ Local development, LAN dev servers, and device debugging are covered in [docs/DE
 - FireFIT is MIT licensed: see [LICENSE](LICENSE).
 - Exercise photos, cover art and the FireFIT logo artwork were provided by the project owner; third-party logos on shoes are blurred in the app's copies.
 - [lucide](https://lucide.dev) icons are ISC licensed.
-- Sound effects were generated with [ElevenLabs](https://elevenlabs.io) (Sound Effects API) at development time and are bundled in the app; the app never calls ElevenLabs. Read-aloud reports use Amazon Polly.
+- Music and sound effects were generated with [ElevenLabs](https://elevenlabs.io) (Music and Sound Effects APIs) at development time and are bundled in the app; the app never calls ElevenLabs. Read-aloud reports use Amazon Polly.
 - [MediaPipe Tasks Vision](https://github.com/google-ai-edge/mediapipe) and its Pose Landmarker models are Apache 2.0, by Google.
 - [Strands Agents SDK](https://github.com/strands-agents) is Apache 2.0.
 - Amazon Nova via Amazon Bedrock. React, Vite, Zod, AWS CDK and the AWS SDK for JavaScript are each under their own open-source licenses.
