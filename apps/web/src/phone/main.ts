@@ -54,6 +54,13 @@ if (!window.isSecureContext) {
 }
 if (room) ui.startMsg.textContent = `Pairing with room ${room}. ` + ui.startMsg.textContent;
 
+// Start downloading the pose model right away, while the user is still setting the phone up.
+const loadMsg = document.createElement("p");
+loadMsg.id = "load-msg";
+ui.start.appendChild(loadMsg);
+const posePromise = loadPose(params.get("model") === "lite" ? "lite" : "full", (m) => (loadMsg.textContent = m));
+posePromise.catch((err) => (loadMsg.textContent = `Pose model failed: ${(err as Error).message}`));
+
 ui.go.addEventListener("click", () => {
   ui.go.disabled = true;
   start().catch((err) => {
@@ -68,8 +75,8 @@ async function start() {
   const cam = await openCamera(params.get("cam") === "back" ? "environment" : "user");
   video.srcObject = cam;
   await video.play();
-  ui.go.textContent = "Loading pose model…";
-  pose = await loadPose(params.get("model") === "lite" ? "lite" : "full");
+  ui.go.textContent = "Waiting for pose model…";
+  pose = await posePromise;
   await navigator.wakeLock?.request("screen").catch(() => {}); // keep the phone awake on the tripod
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") navigator.wakeLock?.request("screen").catch(() => {});

@@ -22,5 +22,6 @@ html, body { margin: 0; height: 100%; background: #0b0f17; color: #e8edf5; font:
 #start h1 { margin: 0; font-size: 56px; }
 #start h1 span { color: #ff7a1a; font-style: italic; }
 #start p { margin: 0; max-width: 520px; color: #9aa6b8; font-size: 18px; }
+#load-msg { margin: 0; min-height: 1.4em; color: #ffb15c; font: 15px ui-monospace, monospace; }
 #go { background: #ff7a1a; color: #fff; border: 0; border-radius: 14px; padding: 16px 28px; font-size: 20px; font-weight: 700; }
 #go:disabled { opacity: 0.6; }
