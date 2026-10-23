@@ -23,8 +23,8 @@ android {
         applicationId = "app.firefit.tv"
         minSdk = 25 // Fire OS 6 (Android 7.1); Fire OS 7 = API 28, Fire OS 8 = API 30
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.0.1"
+        versionCode = 3
+        versionName = "1.0.2"
         buildConfigField("String", "FIREFIT_URL", "\"$firefitUrl\"")
     }
 
