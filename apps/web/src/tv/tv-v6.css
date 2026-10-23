@@ -51,3 +51,11 @@
    40 -> 24/s, video frame rate unchanged. (Dropping the ring sweep and depth-bar glide cut more raster but cost ~1 fps
    of shown video in the same test, so they stay.) */
 .rc-ring::after { transition: opacity 600ms ease; will-change: opacity; }
+
+/* Each HUD panel on its own compositor layer. In the page's one big layer, every 256 px tile a panel touches is blended
+   over the video on every frame, transparent parts included; a panel layer blends only the panel. Measured with the
+   TV pinned to one CPU core (a weak stick): video shown 6.5 -> 9.3 fps, raster 260 -> 75 ms/s; unchanged on a full-speed
+   TV (21 fps). No visual change; these layers replace the page tiles the panels already used. */
+.workout .glass,
+.workout .topbar,
+.workout .logo-img { will-change: transform; }
