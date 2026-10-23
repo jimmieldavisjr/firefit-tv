@@ -2,6 +2,16 @@
 
 Logged when a snag happens. Only real, observed issues. Format: task, steps, expected vs actual, severity, workaround, suggestion.
 
+### F-04 Each SCP denial names only one policy, so fixing a deploy block took two rounds
+- Task: run `cdk bootstrap` / `cdk deploy` in a member account of the owner's own AWS Organization
+- Steps: 1. `aws lambda list-functions` → `explicit deny in a service control policy: …/p-39p6wt1g` 2. owner deletes that SCP 3. retry
+- Expected: access works, or the error lists every policy that denies the action
+- Actual: the same denial, now naming a second SCP `p-p10l2788` (attached higher in the org). The member account can't call `organizations:ListPoliciesForTarget` to see what else applies.
+- Severity: Major (blocked all deploys for ~30 min)
+- Workaround: owner removed both SCPs from the management account. We confirmed with read-only list calls across Lambda, DynamoDB, CloudFormation, API Gateway, SSM and ECR before deploying.
+- Suggestion: list all denying policies in the error, or point to a "why can't I…" view such as IAM Access Analyzer's policy check. `cdk bootstrap` could pre-flight the services it needs (CloudFormation, ECR, SSM, S3, IAM) and name the blocking SCPs up front.
+- Time: Oct 22 21:50–22:12 PT · AWS CLI 2.38.4
+
 ### F-03 A 720p WebRTC loopback in Amazon WebView exhausts memory on the Fire TV Stick 4K (1st gen)
 - Task: Gate 0: prove that the Fire OS WebView can decode WebRTC video before building the TV app
 - Steps: 1. sideload the WebView shell 2. load a page that streams a 1280×720 @ 30 canvas through two local RTCPeerConnections (encode + decode on the TV) 3. read getStats()
