@@ -106,7 +106,6 @@ export function Workout(props: {
             size={264}
             p={progress / b.target}
             segments={timed ? 1 : b.target}
-            live={live === "active" && !timed ? meter : undefined}
             color={timed ? (t.good ? ["#34d399", "#86efac"] : ["#f59e0b", "#fcd34d"]) : ["#3b9cff", "#ff9a3c"]}
           />
           <div className="rc-center">
@@ -174,7 +173,7 @@ export function Workout(props: {
       {live === "active" && (
         <div className="depth-meter glass strong">
           <div className="depth-track">
-            <div className="depth-fill" style={{ width: `${meter * 100}%` }} />
+            <div className="depth-fill" style={{ transform: `scaleX(${meter})` }} />
             <div className="depth-target" style={{ left: `calc(${meterTarget * 100}% - 4px)` }} />
           </div>
           <div className={"depth-label" + (meterOk ? "" : " idle")}>

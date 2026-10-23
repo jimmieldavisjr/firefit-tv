@@ -152,4 +152,4 @@ export type SessionReport = { session: WorkoutInput & { id: string; completedAt:
 // POST /rooms
 export type RoomCreated = { code: string; token: string; expiresAt: number };
 
-export { DEFAULT_SESSION, EXERCISE_INFO, GOALS, LEVELS } from "./programs";
+export { DEFAULT_SESSION, durationWords, EXERCISE_INFO, GOALS, LEVELS } from "./programs";

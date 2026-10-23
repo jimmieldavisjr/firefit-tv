@@ -1,6 +1,6 @@
 // Deterministic numbers for the agent's analyze_trends tool, plus the rules fallback and guardrails.
 // The model never does arithmetic: it reasons over what this file computes.
-import { DEFAULT_SESSION, EXERCISE_INFO } from "@firefit/shared/programs";
+import { DEFAULT_SESSION, durationWords, EXERCISE_INFO } from "@firefit/shared/programs";
 import type { BlockPlan, BlockResult, Decision, Exercise, Plan, Rep, WorkoutInput } from "@firefit/shared";
 
 export type Session = WorkoutInput & { id: string; completedAt: string };
@@ -79,6 +79,7 @@ export function trends([cur, ...prev]: Session[]) {
   });
   return {
     totalSessionSec: cur.durationSec,
+    totalSessionTime: durationWords(cur.durationSec), // say this, not the raw seconds
     timeUnderWorkSec: cur.activeSec,
     restAndSetupSec: Math.max(0, cur.durationSec - cur.activeSec),
     caloriesEst: cur.caloriesEst,
@@ -88,8 +89,8 @@ export function trends([cur, ...prev]: Session[]) {
 }
 export type Trends = ReturnType<typeof trends>;
 
-const STEP: Record<Exercise, number> = { squat: 2, pushup: 2, plank: 10 };
-const LIMITS: Record<Exercise, [number, number]> = { squat: [3, 30], pushup: [3, 30], plank: [10, 120] };
+const STEP: Record<Exercise, number> = { squat: 2, pushup: 2, plank: 5 };
+const LIMITS: Record<Exercise, [number, number]> = { squat: [3, 30], pushup: [3, 30], plank: [5, 120] };
 
 /** The plan the user just did, as the base for the next one (default session when unknown). */
 export function lastPlan(s: Session | undefined): BlockPlan[] {
@@ -135,7 +136,7 @@ export function rulesPlan(t: Trends, last: Session): Plan {
   return guard(
     {
       decision,
-      recap: `${t.blocks.length} exercises in ${Math.round(t.totalSessionSec / 60)} min, about ${t.caloriesEst} kcal (estimate).`,
+      recap: `${t.blocks.length} exercises in ${durationWords(t.totalSessionSec)}, about ${t.caloriesEst} kcal (estimate).`,
       insights,
       wentWell: wentWell.length ? wentWell : ["You finished the session. That's the habit that matters most."],
       toFix: toFix.length ? toFix : ["Keep the same smooth tempo on every rep."],
@@ -168,5 +169,20 @@ export function guard(p: Plan, last: Session | undefined, topCue?: string | null
     return { exercise: b.exercise, sets: clamp(proposed.sets, 1, 4), target, restSec: clamp(proposed.restSec, 20, 120) };
   });
   const focusCue = (p.decision === "technique" && topCue ? topCue : p.focusCue).trim().slice(0, 120) || topCue || "Move with control";
-  return { ...p, focusCue, insights: p.insights.slice(0, 5), wentWell: p.wentWell.slice(0, 3), toFix: p.toFix.slice(0, 3), next: { blocks } };
+  const say = (s: string) => humanDurations(s);
+  return {
+    ...p,
+    recap: say(p.recap),
+    focusCue,
+    insights: p.insights.slice(0, 5).map(say),
+    wentWell: p.wentWell.slice(0, 3).map(say),
+    toFix: p.toFix.slice(0, 3).map(say),
+    nextTime: say(p.nextTime),
+    next: { blocks },
+  };
+}
+
+/** Any duration of a minute or more written as raw seconds ("339 sec", "339s", "339 seconds") becomes minutes and seconds. */
+export function humanDurations(text: string): string {
+  return text.replace(/\b(\d{2,5})\s*(?:seconds?|secs?|s)\b/gi, (whole, n: string) => (Number(n) >= 60 ? durationWords(Number(n)) : whole));
 }

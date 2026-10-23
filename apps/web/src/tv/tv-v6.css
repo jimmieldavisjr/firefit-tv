@@ -8,17 +8,21 @@
 
 /* Workout glass over live video. Measured on the Fire TV Stick 4K Max (Chrome 118 WebView): backdrop blur, big soft
    shadows, a masked rim and SVG glow filters re-composite every video frame and dropped the page to ~5 fps. This flat
-   version looks the same (dark smoked pane, light top-left edge, short shadow) and runs at ~50 fps. */
+   version keeps the look (dark smoked pane, light top-left edge) without per-frame effects. */
 .workout .glass {
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0) 40%), rgba(9, 12, 19, 0.76);
   border: 1px solid rgba(255, 255, 255, 0.10);
   border-top-color: rgba(255, 255, 255, 0.34);
   border-left-color: rgba(255, 255, 255, 0.20);
-  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 .workout .overlay.glass { background: rgba(8, 11, 18, 0.88); }
+/* No full-screen gradient over the video: blending a 1920x1080 layer over every decoded frame was the biggest cost
+   (measured 17-20 fps with it, 52-54 fps without, video 13 -> 23 fps). The clock gets a text shadow instead. */
+.workout::before { display: none; }
+.workout .topbar .right { text-shadow: 0 2px 10px rgba(0, 0, 0, 0.7); }
 .workout .w-bottom .end-btn { position: relative; z-index: 1; }
 
 /* Right column now holds Up next, Then and Rest after set */
@@ -35,3 +39,7 @@
 /* Onboarding: the four one-word goals sit on one row */
 .onboard .chips { flex-wrap: nowrap; }
 .onboard .opt { padding: 10px 16px; font-size: 23px; white-space: nowrap; }
+
+/* Live telemetry must not repaint panels at 10-15 Hz over video: the depth bar stretches on the GPU (transform), and
+   the rep ring no longer draws a live inner arc (the bar shows the same descent). Measured: 27 fps -> ~60 fps. */
+.depth-fill { width: 100%; transform-origin: left center; will-change: transform; transition: transform 120ms linear; }

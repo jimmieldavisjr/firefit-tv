@@ -1,6 +1,7 @@
 // Amazon Polly read-aloud of the after-action report (GET /workouts/{id}/voice).
 // The script is composed in code from the saved coach run, so the voice says exactly what the TV shows.
 import { PollyClient, SynthesizeSpeechCommand, type Engine, type VoiceId } from "@aws-sdk/client-polly";
+import { humanDurations } from "./trends";
 
 const polly = new PollyClient({});
 export const MAX_CHARS = 1000; // Polly bills per character (up to 3,000 per request); a report needs far fewer
@@ -16,6 +17,7 @@ const sentence = (s: string) => {
 export function composeScript(r: Report): string {
   const wentWell = r.wentWell?.length ? r.wentWell : [];
   const toFix = r.toFix?.length ? r.toFix : (r.insights ?? []).slice(0, 2); // older reports only had insights
+  // Reports saved before the duration fix may still say "339 seconds": speak it as minutes and seconds.
   const parts = [
     "Workout complete.",
     sentence(r.recap ?? ""),
@@ -25,7 +27,7 @@ export function composeScript(r: Report): string {
     r.focusCue ? `Your focus cue: ${sentence(r.focusCue)}` : "",
   ].filter(Boolean);
   let text = "";
-  for (const p of parts) {
+  for (const p of parts.map(humanDurations)) {
     if ((text + " " + p).trim().length > MAX_CHARS) break;
     text = (text + " " + p).trim();
   }

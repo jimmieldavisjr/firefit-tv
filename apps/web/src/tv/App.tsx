@@ -360,7 +360,8 @@ export function App() {
   const coverBg = screen === "boot" || screen === "onboard" || screen === "profiles";
   return (
     <>
-      <video ref={videoRef} className={"remote-video" + (screen === "workout" ? " on" : "")} muted autoPlay playsInline />
+      {/* hidden (still connected) while the opaque break screen covers it: no point compositing video nobody sees */}
+      <video ref={videoRef} className={"remote-video" + (screen === "workout" && w?.phase !== "rest" && w?.phase !== "transition" ? " on" : "")} muted autoPlay playsInline />
       {screen !== "workout" && <div className={coverBg ? "cover-bg" : "ambient"} />}
       {screen === "boot" && (
         <div className="boot">

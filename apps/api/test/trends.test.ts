@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fixture from "../../../fixtures/session-full.json";
-import { blockStats, guard, normalize, repIntervals, rulesPlan, trends, type Session } from "../src/trends";
+import { blockStats, guard, humanDurations, normalize, repIntervals, rulesPlan, trends, type Session } from "../src/trends";
+import { durationWords } from "@firefit/shared/programs";
 
 const session = (over: Partial<Session> = {}): Session => ({ ...(fixture as unknown as Session), id: "s1", completedAt: "2026-10-23T00:00:00Z", ...over });
 const block = (i: number, patch: object) => {
@@ -42,7 +43,7 @@ describe("rulesPlan", () => {
   it("progresses every exercise when all targets were met with clean form", () => {
     const p = rulesPlan(trends([clean()]), clean());
     expect(p.decision).toBe("progress");
-    expect(p.next.blocks.map((b) => b.target)).toEqual([12, 10, 40]);
+    expect(p.next.blocks.map((b) => b.target)).toEqual([12, 10, 35]);
   });
 
   it("chooses technique when cues hit 30% of reps", () => {
@@ -67,7 +68,7 @@ describe("guard", () => {
   it("keeps the three exercises in order and clamps targets", () => {
     const p = guard({ ...base, next: { blocks: [{ exercise: "plank", sets: 9, target: 500, restSec: 1 }] } }, clean());
     expect(p.next.blocks.map((b) => b.exercise)).toEqual(["squat", "pushup", "plank"]);
-    expect(p.next.blocks[2]).toEqual({ exercise: "plank", sets: 4, target: 40, restSec: 20 });
+    expect(p.next.blocks[2]).toEqual({ exercise: "plank", sets: 4, target: 35, restSec: 20 });
   });
 
   it("forces progress on met targets only, and hold to keep targets", () => {
@@ -90,5 +91,19 @@ describe("after-action report fields", () => {
     expect(p.wentWell.length).toBeGreaterThan(0);
     expect(p.toFix.some((t) => /hips|knees|%/i.test(t))).toBe(true);
     expect(p.nextTime).toMatch(/^Next time: squats 3 by 10, push-ups 3 by 8, plank 3 by 30 seconds\.$/);
+  });
+});
+
+describe("durations are said in minutes and seconds", () => {
+  it("formats seconds as words", () => {
+    expect(durationWords(339)).toBe("5 minutes and 39 seconds");
+    expect(durationWords(120)).toBe("2 minutes");
+    expect(durationWords(61)).toBe("1 minute and 1 second");
+    expect(durationWords(45)).toBe("45 seconds");
+  });
+  it("rewrites raw seconds of a minute or more, leaves short holds alone", () => {
+    expect(humanDurations("The workout lasted 339 seconds.")).toBe("The workout lasted 5 minutes and 39 seconds.");
+    expect(humanDurations("Done in 339s, rest 200 sec")).toBe("Done in 5 minutes and 39 seconds, rest 3 minutes and 20 seconds");
+    expect(humanDurations("You held 30 of 30 seconds.")).toBe("You held 30 of 30 seconds.");
   });
 });
