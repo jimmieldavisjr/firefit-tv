@@ -2,15 +2,18 @@
 
 Logged when a snag happens. Only real, observed issues. Format: task, steps, expected vs actual, severity, workaround, suggestion.
 
-### F-04 Each SCP denial names only one policy, so fixing a deploy block took two rounds
-- Task: run `cdk bootstrap` / `cdk deploy` in a member account of the owner's own AWS Organization
-- Steps: 1. `aws lambda list-functions` → `explicit deny in a service control policy: …/p-39p6wt1g` 2. owner deletes that SCP 3. retry
-- Expected: access works, or the error lists every policy that denies the action
-- Actual: the same denial, now naming a second SCP `p-p10l2788` (attached higher in the org). The member account can't call `organizations:ListPoliciesForTarget` to see what else applies.
-- Severity: Major (blocked all deploys for ~30 min)
-- Workaround: owner removed both SCPs from the management account. We confirmed with read-only list calls across Lambda, DynamoDB, CloudFormation, API Gateway, SSM and ECR before deploying.
-- Suggestion: list all denying policies in the error, or point to a "why can't I…" view such as IAM Access Analyzer's policy check. `cdk bootstrap` could pre-flight the services it needs (CloudFormation, ECR, SSM, S3, IAM) and name the blocking SCPs up front.
-- Time: Oct 22 21:50–22:12 PT · AWS CLI 2.38.4
+### F-04 AWS Organizations guardrail SCPs blocked the first CDK deploy; finding and removing them was hard
+- Task: prepare a fresh AWS account for an agentic deploy (CDK bootstrap, then Lambda, DynamoDB, API Gateway, Bedrock) from the AWS CLI.
+- Steps: 1. Created an AWS account and a "FireFIT" project, which turned out to be a member account inside an AWS Organization. 2. Signed in to the CLI and confirmed `aws sts get-caller-identity`. 3. Tested access: CloudFormation, Lambda, DynamoDB, API Gateway, SSM and ECR all failed with "explicit deny in a service control policy". 4. Signed in to the management account, then found and detached SCP #1. 5. Re-tested: the same services were now denied by a second SCP. 6. Detached SCP #2 from the member account's Policies tab. 7. All services worked.
+- Expected: the account owner can deploy to their own account. If guardrails block that, the error and the console point straight to what is blocking and how to change it.
+- Actual (owner): "The most tedious part was navigating the AWS console to find and change the policies that were blocking my agentic workflow. It wasn't intuitive that I needed a second account and user after already creating one, getting to the policy settings took several hops, and when I finally arrived, the console said I didn't have access, even though I own the entire AWS account."
+- Actual (technical): each CLI error named only one SCP ARN, not which account had to change it, so the two deny SCPs had to be found one at a time. The member account can't call `organizations:ListPoliciesForTarget` to see what else applies, and the fix had to be made from the management account.
+- Severity: Blocker (no deploy possible until resolved; about an hour lost overnight, close to the deadline).
+- Workaround: signed in to the management account, went to AWS Organizations › AWS accounts › FireFIT › Policies, detached both deny SCPs, kept FullAWSAccess, and re-verified with read-only list calls across Lambda, DynamoDB, CloudFormation, API Gateway, SSM and ECR before deploying.
+- Suggestion (owner): "An agent-guided onboarding flow would help: at each sign-in, it asks what you're trying to accomplish, then takes you straight to the settings you need, or lets you skip ahead."
+- Suggestion (concrete): (1) an access-denied error caused by an SCP should list every denying policy, name the management account, and deep-link to that policy's Targets tab; (2) when the owner opens Organizations from a member account, offer "switch to management account" instead of a bare access denied; (3) project or guardrail setup should list the SCPs it creates and offer a "developer sandbox" preset that allows CloudFormation, Lambda, DynamoDB, API Gateway, SSM and ECR; (4) `cdk bootstrap` could pre-flight the services it needs and name the blocking SCPs up front.
+- Related (minor): Bedrock Converse returned "Your account is currently being verified" for roughly the first hour on the new account, even though the model showed AUTHORIZED. It cleared on its own.
+- Time: Oct 22, 2026, late evening PT · AWS CLI 2.38.4 · us-east-1
 
 ### F-03 A 720p WebRTC loopback in Amazon WebView exhausts memory on the Fire TV Stick 4K (1st gen)
 - Task: Gate 0: prove that the Fire OS WebView can decode WebRTC video before building the TV app
