@@ -9,6 +9,7 @@ import { Library, type Program } from "./screens/Library";
 import { Pair } from "./screens/Pair";
 import { Summary, type CoachState } from "./screens/Summary";
 import { Workout, type Telemetry, type VideoStats } from "./screens/Workout";
+import { TopBar } from "./ui";
 import { useRemote } from "./useRemote";
 import { initWorkout, toWorkoutInput, workoutReducer, type Phase, type WorkoutEvent, type WorkoutState } from "./workout";
 
@@ -27,7 +28,7 @@ function buildPrograms(profile?: ProfileView | null): Program[] {
   const next = profile?.profile.nextWorkout;
   if (!next) return base;
   const name = next.exercise === "squat" ? "Squats" : "Push-ups";
-  return [{ ...next, title: `${name}: coach's plan`, blurb: "", recommended: true, focusCue: profile?.profile.focusCue }, ...base];
+  return [{ ...next, title: `Coach's plan: ${name}`, blurb: "", recommended: true, focusCue: profile?.profile.focusCue }, ...base];
 }
 
 export function App() {
@@ -41,7 +42,7 @@ export function App() {
   const [vstats, setVstats] = useState<VideoStats>({});
   const [link, setLink] = useState("new");
   const [now, setNow] = useState(Date.now());
-  const [showDebug, setShowDebug] = useState(true);
+  const [showDebug, setShowDebug] = useState(false); // Up on the remote shows link/decoder stats
   const [summary, setSummary] = useState<{ input: WorkoutInput; coach: CoachState } | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const session = useRef<{ pc?: RTCPeerConnection; send?: (m: TvMsg) => unknown; abort: AbortController } | null>(null);
@@ -230,11 +231,13 @@ export function App() {
   return (
     <>
       <video ref={videoRef} className={"remote-video" + (screen === "workout" ? " on" : "")} muted autoPlay playsInline />
+      {screen !== "workout" && <div className="ambient" />}
+      {screen === "library" && <TopBar step="Library" who={profile?.profile.name} />}
+      {screen === "pair" && <TopBar step="Pair" who={profile?.profile.name} />}
+      {screen === "summary" && <TopBar step="Summary" who={profile?.profile.name} />}
       {screen === "library" && <Library programs={programs} focus={Math.min(focus, programs.length - 1)} profile={profile} />}
       {screen === "pair" && program && <Pair title={program.title} {...pairing} />}
-      {screen === "workout" && w && program && (
-        <Workout w={w} t={tel} v={vstats} link={link} title={program.title} now={now} showDebug={showDebug} />
-      )}
+      {screen === "workout" && w && program && <Workout w={w} t={tel} v={vstats} link={link} now={now} showDebug={showDebug} />}
       {screen === "summary" && summary && program && <Summary title={program.title} w={summary.input} coach={summary.coach} />}
     </>
   );

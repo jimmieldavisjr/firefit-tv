@@ -40,6 +40,12 @@ Owner feedback after Gate 3 (Oct 22, 23:27 PT): the flow works; the look must mo
 - Bottom action row: Preview · Switch profile · Camera test · **Start Workout** (primary, orange).
 - The "Recommended next · by your AI coach" card stays first (AWS Builder story).
 
+## Status after polish pass 1 (Oct 22, ~23:50 PT, verified on the Fire TV via adb screenshots)
+
+Done: theme tokens + glass panels + ambient background; top bar (logo with flame, flow steps, profile, clock); library (profile + readiness card, program cards with icon badges and glow focus, detail panel with plan list, stat tiles, recent sessions, Start workout bar); pairing card; workout HUD (left exercise card with gradient rep ring + tick marks + live descent arc, workout time, depth ✓ / tempo; form check card; Up next / Then / rest ring; cue bubble; live depth meter; bottom stats bar with End Set / Skip Rest / Start Now; "Set n complete!" flash; rep pop + green/amber glow); summary (stat tiles, coach card with decision chip and AI/rules label). Screenshots: `docs/evidence/ui-*.png`.
+
+Remaining ideas: program art illustrations instead of icon silhouettes; HUD frame-rate check with a real 30 fps phone stream (the simulated stream decoded at ~15 fps on the stick); a set-complete chime that differs from the rep beep; Rest overlay vs rest card redundancy.
+
 ## Order of work in the polish phase
 
 1. Theme tokens + glass panel component; apply to library, pair and summary (cheap, high visual impact).

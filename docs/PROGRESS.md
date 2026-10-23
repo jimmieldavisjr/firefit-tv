@@ -70,6 +70,7 @@ TV screenshot over adb while paired with the S23: live phone video (portrait 540
 
 - **21:00** Repo empty except `docs/reference`. Read the Ship Plan and the directive.
 - **21:20** Public repo created: https://github.com/jimmieldavisjr/firefit-tv (MIT). CI and the APK release workflow are configured.
+- **23:50** UI polish pass 1 shipped to CloudFront and checked on the Fire TV: library, pairing, workout HUD over live video (simulated phone), rest and summary with a real Strands plan (Progress → 3 × 7). Fixed a body background that hid the video layer. Screenshots in docs/evidence/.
 - **23:27** **Gate 3 PASS** (owner report: "Gate 3 good", the remote-only 2 × 5 workout on the Fire TV). Feedback: the UI works but must match the reference (dark glass, full-screen landscape); remove the Up/Down label; the rep-counter HUD needs more activity. Logged in UI_BACKLOG.md.
 - **~23:15** Block 3 built: workout state machine + HUD + summary + recommended card. Desktop rehearsal against the live stack passed (2 sets, pause, skip rest, coach plan in ~5 s). The agent said "progress" without raising reps and gave a squat cue for push-ups, so the guardrails now force targets to match the decision and cues to match the exercise (4 new tests; hotswapped; smoke 10/10). The shell APK now defaults to CloudFront.
 - **Data note:** the guest history contains smoke-test fixtures and one simulated push-up session. Clear them before recording the demo (needs owner OK: deletes DynamoDB items).
