@@ -11,7 +11,7 @@ Verification levels: **Impl** = code exists · **Build** = compiles/bundles · *
 | --- | --- | --- |
 | Monorepo (pnpm, TS, ESLint, Vitest, CI) | Build · Test | `pnpm check` green: 33 tests |
 | Shared contract (`packages/shared`) | Test | Zod schemas + message types |
-| Gate 0 probe (`probe.html`) | Build | Loopback encode→decode, DataChannel, framesDecoded verdict. **Not yet run on the TV** |
+| Gate 0 probe (`probe.html`) | Build · desktop-verified | Loopback encode→decode, DataChannel, framesDecoded verdict. Desktop Chromium 152: PASS (111→201 frames, 29 fps, VP8). **Not yet run on the TV** |
 | Fire TV shell (`apps/tv-shell`) | Build | AGP 9.4.1 / Gradle 9.8.2; debug APK 885 KB; Leanback + banner confirmed with aapt2. **Not yet installed on the TV** |
 | Rep engine | Test | 10 unit tests (full and half squats, spikes, low visibility, tracking loss, cues). **Not yet tuned on a real body** |
 | Pairing/WebRTC client (`rtc.ts`) | Build | Non-trickle ICE, bitrate cap. Not yet exercised |
@@ -38,4 +38,5 @@ Verification levels: **Impl** = code exists · **Build** = compiles/bundles · *
 ## Log
 
 - **21:00** Repo empty except `docs/reference`. Read the Ship Plan and the directive.
+- **21:20** Public repo created: https://github.com/jimmieldavisjr/firefit-tv (MIT). CI and the APK release workflow are configured.
 - **21:25** Monorepo scaffolded. Shared contract, ApiFn/CoachFn/trends, CDK stack, probe page, rep engine and Kotlin shell all in place. `pnpm check` green; CDK synth bundles both Lambdas; debug APK builds.

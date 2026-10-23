@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "web-tv",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@firefit/web", "dev"],
+      "port": 5173
+    }
+  ]
+}
