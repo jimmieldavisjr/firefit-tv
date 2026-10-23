@@ -19,14 +19,14 @@ Verification levels: **Impl** = code exists · **Build** = compiles/bundles · *
 | TV UI (library, pair, HUD, summary) | **Device** (library, pair, live, recommended card) · **Test** (state machine, 7 tests) · desktop-verified (full 2-set flow) | Ready/active/rest/paused/disconnected HUD + summary with coach plan; library "Recommended next" from the agent shown on the TV (docs/evidence/tv-library-recommended.png). **Gate 3 PASS** (owner, remote only on the TV). UI must be restyled to match the reference ([UI_BACKLOG.md](UI_BACKLOG.md)) |
 | ApiFn (6 routes) | **Prod** | 11 handler tests; `pnpm smoke` against the live API: rooms, token 403, SDP round-trip, 400 validation, workout save |
 | CoachFn (Strands agent + rules fallback) | **Prod** (guardrails v2) | Live run: `source: "agent"`, Nova 2 Lite, all 3 tools called, decision `technique`, plan written to PROFILE in ~3 s (Gate 4 backend evidence below). TV summary/library display not built yet |
-| CDK stack | **Prod** | Deployed to 720022410355 / us-east-1 in 216 s. CloudFront serves the pages, the 9.4 MB model and the wasm (`application/wasm`); the TV loads production `tv.html` over HTTPS |
+| CDK stack | **Prod** | Deployed to the FireFIT account / us-east-1 in 216 s. CloudFront serves the pages, the 9.4 MB model and the wasm (`application/wasm`); the TV loads production `tv.html` over HTTPS |
 
 ## Target devices
 
 - **Fire TV:** Fire TV Stick 4K 1st gen (2018), model AFTMM, Fire OS 6.7.1.1 (Android 7.1.2, API 25), 32-bit armeabi-v7a, ~1.3 GB RAM, outputs 3840×2160. Amazon WebView Chromium 118. adb at `192.168.12.253:5555`.
 - **Network:** TV, phone and laptop (`192.168.12.210`) are on the same Wi-Fi, 192.168.12.x.
 - **Phone:** Samsung Galaxy S23, Google Chrome.
-- **AWS:** profile `firefit`, us-east-1, account 720022410355. Deployed (budget alert $20/month; keep it live until Nov 20).
+- **AWS:** profile `firefit`, us-east-1, FireFIT member account. Deployed (budget alert $20/month; keep it live until Nov 20).
 
 ## Gate 0 evidence (Oct 22, 21:40 PT, on the Fire TV)
 
