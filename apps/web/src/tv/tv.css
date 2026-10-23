@@ -7,6 +7,8 @@
   --accent: #ff7a1a;
   --focus: #ffb15c;
 }
+/* The app draws its own focus ring; suppress the WebView's page-level outline. */
+html:focus, body:focus, #root:focus, :focus-visible { outline: none; }
 html, body { margin: 0; background: var(--bg); color: var(--text); font: 28px/1.3 system-ui, "Segoe UI", Roboto, sans-serif; }
 .library { padding: 64px 96px; }
 .logo { font-size: 72px; margin: 0 0 24px; letter-spacing: -1px; }

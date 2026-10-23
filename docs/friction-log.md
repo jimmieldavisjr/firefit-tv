@@ -2,6 +2,16 @@
 
 Logged when a snag happens. Only real, observed issues. Format: task, steps, expected vs actual, severity, workaround, suggestion.
 
+### F-03 A 720p WebRTC loopback in Amazon WebView exhausts memory on the Fire TV Stick 4K (1st gen)
+- Task: Gate 0: prove that the Fire OS WebView can decode WebRTC video before building the TV app
+- Steps: 1. sideload the WebView shell 2. load a page that streams a 1280×720 @ 30 canvas through two local RTCPeerConnections (encode + decode on the TV) 3. read getStats()
+- Expected: framesDecoded rises, or a clear WebRTC error
+- Actual: within ~4 s Android's low-memory killer terminated almost every process (Netflix, Hulu, Alexa services, the IME, the WebView service) and then our app. The screen dropped back to Settings with no error shown. Logcat shows only "Process … has died" lines.
+- Severity: Major (it looks like a crash and gives no diagnostic)
+- Workaround: parameterized the probe; 640×360 @ 15 passes (framesDecoded 60 → 104, DataChannel ok). The real app only decodes on the TV. Cost ~15 min.
+- Suggestion: document WebRTC support and per-device media limits for Amazon WebView on each Fire TV model (max decode resolution, whether hardware decode is used, and memory guidance). Surfacing an `onRenderProcessGone`-style reason in logcat would also help.
+- Time: Oct 22 21:30 PT · Fire TV Stick 4K (AFTMM), Fire OS 6.7.1.1, Amazon WebView 118
+
 ### F-01 Android Gradle Plugin 9.4.1 fails on Gradle 9.4.1 with an opaque error
 - Task: create the Fire TV WebView shell build (Gradle wrapper + AGP)
 - Steps: 1. `plugins { id("com.android.application") version "9.4.1" }` 2. run `gradle wrapper` with the locally cached Gradle 9.4.1

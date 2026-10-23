@@ -12,7 +12,13 @@ const log = (s: string, cls?: "pass" | "fail") => {
   console.log("[probe]", s);
 };
 
-const result: Record<string, unknown> = { ua: navigator.userAgent };
+// The loopback makes the TV encode AND decode. The real app only decodes, so start small on low-RAM sticks:
+//   probe.html?w=640&h=360&fps=15   (defaults: 1280x720 @ 30)
+const q = new URLSearchParams(location.search);
+const W = Number(q.get("w") ?? 1280);
+const H = Number(q.get("h") ?? 720);
+const FPS = Number(q.get("fps") ?? 30);
+const result: Record<string, unknown> = { ua: navigator.userAgent, w: W, h: H, fps: FPS };
 
 async function main() {
   log("UA: " + navigator.userAgent);
@@ -27,16 +33,17 @@ async function main() {
   log("decoders: " + decoders.join(" "));
 
   // loopback: canvas -> PC a -> PC b -> <video>, all on this device
-  const c = Object.assign(document.createElement("canvas"), { width: 1280, height: 720 });
+  log(`loopback: ${W}x${H} @ ${FPS} fps`);
+  const c = Object.assign(document.createElement("canvas"), { width: W, height: H });
   const g = c.getContext("2d")!;
   let f = 0;
   setInterval(() => {
     g.fillStyle = `hsl(${f++ % 360} 80% 45%)`;
-    g.fillRect(0, 0, 1280, 720);
+    g.fillRect(0, 0, W, H);
     g.fillStyle = "#fff";
-    g.font = "160px sans-serif";
-    g.fillText(String(f), 80, 420);
-  }, 33);
+    g.font = `${Math.round(H / 4.5)}px sans-serif`;
+    g.fillText(String(f), W / 16, H * 0.58);
+  }, 1000 / FPS);
 
   const a = new RTCPeerConnection();
   const b = new RTCPeerConnection();
@@ -53,7 +60,7 @@ async function main() {
       log("datachannel: " + m.data, dcOk ? "pass" : "fail");
     };
   };
-  const s = c.captureStream(30);
+  const s = c.captureStream(FPS);
   s.getTracks().forEach((t) => a.addTrack(t, s));
   const dc = a.createDataChannel("t");
   dc.onopen = () => dc.send("ok");
@@ -77,7 +84,7 @@ async function main() {
   const s2 = await sample();
   Object.assign(result, { s1, s2, datachannel: dcOk });
   log(`framesDecoded ${s1.framesDecoded} -> ${s2.framesDecoded}  fps=${s2.fps}  codec=${s2.codec}  decoder=${s2.decoder}`);
-  const rising = s2.framesDecoded > s1.framesDecoded && s2.framesDecoded > 30;
+  const rising = s2.framesDecoded > s1.framesDecoded && s2.framesDecoded > FPS;
   log("video decoding: " + (rising ? "frames rising" : "NOT rising"), rising ? "pass" : "fail");
 
   if (rising && dcOk) verdict(true, "Level L0 is viable: live video + DataChannel.");

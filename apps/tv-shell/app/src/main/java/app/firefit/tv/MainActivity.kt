@@ -28,12 +28,18 @@ class MainActivity : Activity() {
             settings.javaScriptEnabled = true
             settings.domStorageEnabled = true
             settings.mediaPlaybackRequiresUserGesture = false // the phone's video autoplays
+            // Honor <meta name="viewport" content="width=1920">: lay out at 1920 CSS px and scale to the screen
+            // (without this the 4K Stick's density renders the 10-foot UI at ~2x)
+            settings.useWideViewPort = true
+            settings.loadWithOverviewMode = true
             webChromeClient = WebChromeClient()
             webViewClient = WebViewClient() // keep navigation inside the shell
             addJavascriptInterface(Host(), "FireFitHost")
             isFocusable = true
             isFocusableInTouchMode = true
         }
+        // Map the 1920-px design width onto the physical screen (the 4K Stick reports 3840 px wide)
+        web.setInitialScale(resources.displayMetrics.widthPixels * 100 / 1920)
         setContentView(web)
         web.requestFocus()
         web.loadUrl(intent.getStringExtra("url") ?: BuildConfig.FIREFIT_URL)
