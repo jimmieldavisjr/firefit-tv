@@ -22,6 +22,8 @@
       <span id="debug"></span>
     </div>
 
+    <button id="swap" hidden aria-label="Switch camera"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 19H4a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h5"/><path d="M13 5h7a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-5"/><circle cx="12" cy="12" r="3"/><path d="m18 22-3-3 3-3"/><path d="m6 2 3 3-3 3"/></svg></button>
+
     <div id="tools" hidden>
       <button id="ex-squat" class="on">Squat</button>
       <button id="ex-pushup">Push-up</button>
@@ -36,9 +38,22 @@
     </div>
 
     <div id="start">
-      <img class="logo" src="/img/logo.png" alt="FireFIT" />
-      <p id="start-msg">Prop the phone up in landscape, 2.5–3 m away, with your whole body in frame.</p>
-      <button id="go">Tap to start camera</button>
+      <div class="start-info">
+        <img class="logo" src="/img/logo.png" alt="FireFIT" />
+        <ol class="steps">
+          <li>Prop the phone up sideways, 2.5–3 m away</li>
+          <li>Step back until your whole body is in frame</li>
+          <li>Tap Start, then follow the TV</li>
+        </ol>
+      </div>
+      <div class="start-go">
+        <div class="cam-pick" role="group" aria-label="Camera">
+          <button id="cam-user" class="on">Front camera</button>
+          <button id="cam-environment">Back camera</button>
+        </div>
+        <button id="go">Start</button>
+        <p id="start-msg"></p>
+      </div>
     </div>
 
     <script type="module" src="/src/phone/main.ts"></script>

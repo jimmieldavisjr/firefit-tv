@@ -22,6 +22,9 @@ const ui = {
   start: $("start"),
   startMsg: $("start-msg"),
   go: $<HTMLButtonElement>("go"),
+  swap: $<HTMLButtonElement>("swap"),
+  camUser: $<HTMLButtonElement>("cam-user"),
+  camBack: $<HTMLButtonElement>("cam-environment"),
 };
 
 const params = new URLSearchParams(location.search);
@@ -54,7 +57,56 @@ if (!window.isSecureContext) {
   ui.startMsg.textContent = "The camera needs HTTPS. Open this page from the TV's QR code or the CloudFront URL.";
   ui.go.disabled = true;
 }
-if (room) ui.startMsg.textContent = `Pairing with room ${room}. ` + ui.startMsg.textContent;
+
+// Camera: front or back, picked on the start screen and swappable mid-session (remembered on this phone).
+type Facing = "user" | "environment";
+const CAM_KEY = "firefit.camera";
+const savedFacing = (() => {
+  try {
+    return localStorage.getItem(CAM_KEY) as Facing | null;
+  } catch {
+    return null;
+  }
+})();
+let facing: Facing = params.get("cam") === "back" ? "environment" : (savedFacing ?? "user");
+const showFacing = () => {
+  ui.camUser.classList.toggle("on", facing === "user");
+  ui.camBack.classList.toggle("on", facing === "environment");
+};
+const pickFacing = (f: Facing) => {
+  facing = f;
+  showFacing();
+  try {
+    localStorage.setItem(CAM_KEY, f);
+  } catch {
+    /* not remembered */
+  }
+};
+showFacing();
+ui.camUser.addEventListener("click", () => pickFacing("user"));
+ui.camBack.addEventListener("click", () => pickFacing("environment"));
+
+/** Opens the chosen camera into the hidden <video>. The canvas stream to the TV keeps running, so no re-pairing. */
+async function useCamera(f: Facing) {
+  const old = video.srcObject as MediaStream | null;
+  old?.getTracks().forEach((t) => t.stop()); // many phones can't open two cameras at once
+  try {
+    video.srcObject = await openCamera(f);
+  } catch (err) {
+    if (old && f !== facing) video.srcObject = await openCamera(facing); // put the previous camera back
+    throw err;
+  }
+  pickFacing(f);
+  lastVideoTime = -1;
+  await Promise.race([video.play(), new Promise((r) => setTimeout(r, 4000))]); // never block on play()
+}
+
+ui.swap.addEventListener("click", () => {
+  ui.swap.disabled = true;
+  useCamera(facing === "user" ? "environment" : "user")
+    .catch((err) => (ui.status.textContent = `Couldn't switch camera: ${(err as Error).message}`))
+    .finally(() => (ui.swap.disabled = false));
+});
 
 // Surface unexpected errors on screen: there is no console on a phone propped on a tripod.
 window.addEventListener("error", (e) => (ui.status.textContent = `Error: ${e.message}`));
@@ -63,7 +115,7 @@ window.addEventListener("unhandledrejection", (e) => (ui.status.textContent = `E
 // Start downloading the pose model right away, while the user is still setting the phone up.
 const loadMsg = document.createElement("p");
 loadMsg.id = "load-msg";
-ui.start.appendChild(loadMsg);
+ui.start.querySelector(".start-go")!.appendChild(loadMsg); // under the Start button
 const posePromise = loadPose(params.get("model") === "lite" ? "lite" : "full", (m) => (loadMsg.textContent = m));
 posePromise.catch((err) => (loadMsg.textContent = `Pose model failed: ${(err as Error).message}`));
 
@@ -86,11 +138,8 @@ ui.go.addEventListener("click", () => {
 
 async function start() {
   ui.go.textContent = "Opening camera…";
-  const cam = await openCamera(params.get("cam") === "back" ? "environment" : "user");
-  video.srcObject = cam;
-  ui.go.textContent = "Starting video…";
-  await Promise.race([video.play(), new Promise((r) => setTimeout(r, 4000))]); // never block on play()
-  ui.go.textContent = "Waiting for pose model…";
+  await useCamera(facing);
+  ui.go.textContent = "Loading pose model…";
   pose = await posePromise;
   const keepAwake = () => navigator.wakeLock?.request("screen").catch(() => {}); // fire and forget
   keepAwake();
@@ -99,7 +148,10 @@ async function start() {
   sizeCanvas();
   ui.start.hidden = true;
   ui.hud.hidden = false;
+  ui.swap.hidden = false;
   ui.tools.hidden = !!room; // exercise/reset buttons only in standalone self-test
+  document.body.classList.toggle("paired", !!room); // paired: the TV is the display, keep the phone screen quiet
+  document.body.classList.toggle("debug", params.has("debug"));
   ui.status.textContent = room ? "Connecting to TV…" : SELF_TEST[engine.exercise];
   requestAnimationFrame(tick);
   if (room && token) connect(room, token).catch((err) => (ui.status.textContent = `Pairing failed: ${err.message}`));
