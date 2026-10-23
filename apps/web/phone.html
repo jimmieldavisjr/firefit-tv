@@ -8,9 +8,32 @@
     <link rel="stylesheet" href="/src/phone/phone.css" />
   </head>
   <body>
-    <video id="cam" playsinline muted hidden></video>
+    <video id="cam" playsinline muted></video>
     <canvas id="out"></canvas>
-    <div id="hud"><span id="status">Starting…</span><span id="debug"></span></div>
+
+    <div id="hud" hidden>
+      <div id="reps">0</div>
+      <div id="stage">—</div>
+      <div id="cue"></div>
+    </div>
+
+    <div id="bar">
+      <span id="status">FireFIT sensor</span>
+      <span id="debug"></span>
+    </div>
+
+    <div id="tools" hidden>
+      <button id="ex-squat" class="on">Squat</button>
+      <button id="ex-pushup">Push-up</button>
+      <button id="reset">Reset</button>
+    </div>
+
+    <div id="start">
+      <h1>fire<span>fit</span></h1>
+      <p id="start-msg">Prop the phone up in landscape, 2.5–3 m away, with your whole body in frame.</p>
+      <button id="go">Tap to start camera</button>
+    </div>
+
     <script type="module" src="/src/phone/main.ts"></script>
   </body>
 </html>

@@ -38,6 +38,15 @@ const iceDone = (pc: RTCPeerConnection, ms = 2500) =>
     });
   });
 
+/** H.264 first: the most likely hardware decoder on Fire TV sticks (Gate 0 listed it). VP8 stays as fallback. */
+function preferH264(pc: RTCPeerConnection) {
+  const codecs = RTCRtpSender.getCapabilities?.("video")?.codecs;
+  if (!codecs) return;
+  const rank = (c: RTCRtpCodec) => (c.mimeType === "video/H264" ? 0 : c.mimeType === "video/VP8" ? 1 : 2);
+  const sorted = [...codecs].sort((a, b) => rank(a) - rank(b));
+  for (const t of pc.getTransceivers()) if (t.sender.track?.kind === "video") t.setCodecPreferences?.(sorted);
+}
+
 /** PHONE: the offerer (it owns the track and the DataChannel). room + token come from the QR. */
 export async function phoneConnect(room: string, token: string, stream: MediaStream, onMsg: (m: TvMsg) => void) {
   const pc = new RTCPeerConnection({ iceServers: ICE });
@@ -47,6 +56,7 @@ export async function phoneConnect(room: string, token: string, stream: MediaStr
     p.encodings = [{ ...(p.encodings?.[0] ?? {}), maxBitrate: MAX_BITRATE }];
     sender.setParameters(p).catch(() => {}); // applied again after negotiation below
   }
+  preferH264(pc);
   const dc = pc.createDataChannel("telemetry"); // ordered + reliable by default
   dc.onmessage = (m) => onMsg(JSON.parse(m.data) as TvMsg);
   await pc.setLocalDescription(await pc.createOffer());
